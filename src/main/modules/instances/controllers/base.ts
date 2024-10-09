@@ -36,7 +36,7 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
     throw new Error('Method not implemented.');
   }
 
-  async postMessage(data: any) {
+  async postMessage(data: any, options?: { transporter?: string }) {
     const msg: OutgoingTransportMessage = {
       browserInstance: {
         sessionId: this.instance.sessionId,
@@ -45,7 +45,7 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
         payload: data,
       },
     };
-    await this.messageQueues.ctt.push(msg);
+    await this.messageQueues.ctt.push({ transporter: options?.transporter, payload: msg });
   }
 
   init(): Promise<void> {

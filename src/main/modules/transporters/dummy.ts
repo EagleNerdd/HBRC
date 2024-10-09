@@ -1,6 +1,9 @@
 import { BaseTransporter } from './base';
 
 export class DummyTransporter extends BaseTransporter {
+  constructor(name: string) {
+    super(name);
+  }
   async send(data: any): Promise<void> {
     console.log('sending data', data);
   }

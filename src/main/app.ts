@@ -19,11 +19,12 @@ import {
 import { FileQueue } from '@main/modules/queue';
 import {
   Transporter,
-  DummyTransporter,
   MqttTransporter,
-  MqttTransporterOptions,
-  HttpTransporterOptions,
   HttpTransporter,
+  TransporterOptions,
+  TransporterType,
+  HttpTransporterOptions,
+  MqttTransporterOptions,
 } from './modules/transporters';
 import { OutgoingTransportMessage, IncommingTransportMessage } from '@shared/types/message';
 import { getComputerName } from '@shared/utils/node';
@@ -31,13 +32,19 @@ import { Logger, createLogger } from './logging';
 import { TransporterStatus } from '@shared/types/transporter';
 import { initMenuForMainWindow } from './menu';
 import { MenuItemId } from '@shared/constants';
-
 export type ApplicationOptions = {
   serverName?: string;
-  transporter?: {
-    http?: HttpTransporterOptions;
-    mqtt?: MqttTransporterOptions;
-  };
+  transporters?: {
+    default: {
+      type: TransporterType;
+      options: TransporterOptions;
+    };
+  } & {
+    [key: string]: {
+      type: TransporterType;
+      options: TransporterOptions;
+    };
+  }; // <transporterName, config>
 };
 
 export class Application {
@@ -49,7 +56,7 @@ export class Application {
   private _isReady = false;
   private ttcMessagesQueue: Queue; // TransporterToController: this queue pass message from transporter to controller
   private cttMessagesQueue: Queue; // ControllerToTransporter: this queue pass message from controller to transporter
-  private transporter: Transporter;
+  private transporters: Record<string, Transporter> = {};
   private agentName: string;
   private logger: Logger;
   private mainWindow?: BrowserWindow;
@@ -72,7 +79,6 @@ export class Application {
       },
       this.events
     );
-    this.transporter = new DummyTransporter();
     this.agentName = getComputerName();
   }
 
@@ -87,7 +93,7 @@ export class Application {
   async setOptions(options: ApplicationOptions, save = true) {
     this.options = { ...this.options, ...options };
     this.logger.debug('setOptions', { options });
-    await this.initTranporter(options.transporter);
+    await this.initTransporters();
     if (save) {
       await this.clientKvStorage.setItem('applicationOptions', this.options);
     }
@@ -108,29 +114,58 @@ export class Application {
     }
   }
 
-  async initTranporter(transporter: ApplicationOptions['transporter']) {
-    if (!transporter) {
+  private getTransporter(name?: string) {
+    name = name || 'default';
+    return this.transporters[name];
+  }
+
+  private async initTransporters() {
+    if (!this.options.transporters || !Object.keys(this.options.transporters).length) {
       return;
     }
-    this.events.onTransporterStatusChanged.emit('connecting');
-    if (transporter.mqtt) {
-      this.transporter = new MqttTransporter(transporter.mqtt);
-    } else if (transporter.http) {
-      this.transporter = new HttpTransporter(transporter.http);
+    const defaultTransporter = this.options.transporters['default'];
+    if (!defaultTransporter) {
+      this.logger.error('Default transporter not found');
+      throw new Error('Default transporter not found');
     }
-    if (this.transporter) {
-      this.transporter.onReceive(async (data: IncommingTransportMessage) => {
-        if (data.controlInstance || data.manageInstance) {
-          await this.ttcMessagesQueue.push(data);
-        }
-      });
-      this.transporter.onConnected(async () => {
+    for (const [name, transporter] of Object.entries(this.options.transporters)) {
+      await this.initTranporter(name, transporter.type, transporter.options);
+    }
+  }
+
+  private async disconnectTransporters() {
+    for (const transporter of Object.values(this.transporters)) {
+      transporter.disconnect();
+    }
+  }
+
+  private async initTranporter(name: string, transporterType: TransporterType, options?: TransporterOptions) {
+    const isDefault = name == 'default';
+    if (isDefault) this.events.onTransporterStatusChanged.emit('connecting');
+    let transporter: Transporter = undefined;
+    if (transporterType == TransporterType.HTTP) {
+      transporter = new HttpTransporter(name, options as HttpTransporterOptions);
+    } else if (transporterType == TransporterType.MQTT) {
+      transporter = new MqttTransporter(name, options as MqttTransporterOptions);
+    }
+    if (!transporter) {
+      throw new Error('Transporter not found');
+    }
+    this.transporters[name] = transporter;
+    transporter.onReceive(async (data: IncommingTransportMessage) => {
+      if (data.controlInstance || data.manageInstance) {
+        await this.ttcMessagesQueue.push(data);
+      }
+    });
+    if (isDefault) {
+      transporter.onConnected(async () => {
         await this.pushMessageToTransporter('info', { name: this.agentName });
         await this.instanceManager.pushListInstanceMessage();
         this.events.onTransporterStatusChanged.emit('connected');
       });
-      this.transporter.connect();
     }
+
+    transporter.connect();
   }
 
   async pushMessageToTransporter(action: OutgoingTransportMessage['agent']['action'], payload: any) {
@@ -152,8 +187,13 @@ export class Application {
 
   private async initMessageQueues() {
     this.cttMessagesQueue.onMessage(async (data) => {
-      if (this.transporter) {
-        await this.transporter.send(data);
+      const { transporter: transporterName, payload } = data;
+
+      const transporter = this.getTransporter(transporterName);
+      if (transporter) {
+        await transporter.send(payload);
+      } else {
+        this.logger.warn('Not found transporter', { transporterName });
       }
     });
     await this.cttMessagesQueue.start();
@@ -205,7 +245,7 @@ export class Application {
   async disconnectServer() {
     this.options = {};
     this.clientKvStorage.delItem('applicationOptions');
-    this.transporter.disconnect();
+    await this.disconnectTransporters();
     this.events.onTransporterStatusChanged.emit('disconnected');
     this.sendMainWindowEvent(ON_SERVER_DISCONNECTED);
     this.setMainWindowMenuVisibilityOnDisconnected();

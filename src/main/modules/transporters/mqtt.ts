@@ -16,14 +16,11 @@ export type MqttTransporterOptions = {
 
 export class MqttTransporter extends BaseTransporter {
   private mqttClient?: MqttClient;
-  private logger: Logger;
-  constructor(private readonly options: MqttTransporterOptions) {
-    super();
-    this.logger = createLogger('mqttTransporter', 'debug');
+  constructor(protected name: string, private readonly options: MqttTransporterOptions) {
+    super(name);
     if (options.qos === undefined) {
       options.qos = 1;
     }
-    this.logger.debug('createMqttTransporter', { options });
   }
 
   protected _disconnect(): void {
