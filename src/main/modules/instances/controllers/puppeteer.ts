@@ -1,21 +1,14 @@
 import { BaseBrowserInstanceController } from './base';
 import { Page } from 'puppeteer-core';
 import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
-import { Queue } from '@shared/queue';
 import { createLogger } from '@main/logging';
+import { TransporterMessaging } from '@main/modules/transporters';
 
 const logger = createLogger('puppeteerInstanceController', 'debug');
 
 export class PuppeteerInstanceController extends BaseBrowserInstanceController {
-  constructor(
-    instance: BrowserInstance,
-    messageQueues: {
-      ttc: Queue;
-      ctt: Queue;
-    },
-    protected readonly page: Page
-  ) {
-    super(instance, messageQueues);
+  constructor(instance: BrowserInstance, transporterMessaging: TransporterMessaging, protected readonly page: Page) {
+    super(instance, transporterMessaging);
   }
 
   async setInstance(instance: BrowserInstance) {

@@ -5,10 +5,10 @@ import { PuppeteerElectron } from '@main/pie';
 import { PuppeteerInstanceController, BrowserInstanceController } from './controllers';
 import { Page } from 'puppeteer-core';
 import { BrowserInstance, BrowserInstanceStatus } from '@shared/types';
-import { Queue } from '@shared/queue';
 import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
 import { Logger, createLogger } from '@main/logging';
 import { ClientEvents } from '../events';
+import { TransporterMessaging } from '../transporters';
 
 class BrowserInstanceManager {
   private db: FSDB;
@@ -17,10 +17,7 @@ class BrowserInstanceManager {
   private logger: Logger;
   constructor(
     private readonly pie: PuppeteerElectron,
-    private readonly messageQueues: {
-      ttc: Queue;
-      ctt: Queue;
-    },
+    private readonly transporterMessaging: TransporterMessaging,
     private readonly clientEvents: ClientEvents
   ) {
     this.logger = createLogger('browserInstanceManager', 'debug');
@@ -35,8 +32,7 @@ class BrowserInstanceManager {
         this.instanceStatusMap.set(sessionId, updated.status);
       }
     });
-    this.messageQueues.ttc.onMessage(this.processTransportMessage.bind(this));
-    await this.messageQueues.ttc.start();
+    this.transporterMessaging.onMessageReceived(this.processTransportMessage.bind(this));
   }
 
   private async processTransportMessage(data: IncommingTransportMessage) {
@@ -141,26 +137,26 @@ class BrowserInstanceManager {
     };
     await this.createInstanceController(bi, page);
     this.saveInstance(bi);
-    this.pushMessageToTransporter('addInstance', { instance: bi });
+    await this.pushMessageToTransporter('addInstance', { instance: bi });
   }
 
   async removeInstance(sessionId: string) {
     this.db.delete(sessionId);
-    this.pushMessageToTransporter('removeInstance', { instance: { sessionId } });
+    await this.pushMessageToTransporter('removeInstance', { instance: { sessionId } });
   }
 
-  private pushMessageToTransporter(action: OutgoingTransportMessage['instanceManager']['action'], payload: any) {
+  private async pushMessageToTransporter(action: OutgoingTransportMessage['instanceManager']['action'], payload: any) {
     const msg: OutgoingTransportMessage = {
       instanceManager: {
         action,
         payload,
       },
     };
-    this.messageQueues.ctt.push(msg);
+    this.transporterMessaging.sendMessage(msg, { transporter: 'default' });
   }
 
   async pushListInstanceMessage() {
-    this.pushMessageToTransporter('listInstance', {
+    await this.pushMessageToTransporter('listInstance', {
       instances: await this.getInstances(),
     });
   }
@@ -192,7 +188,7 @@ class BrowserInstanceManager {
   }
 
   private async createInstanceController(bi: BrowserInstance, page: Page) {
-    const controller = new PuppeteerInstanceController(bi, this.messageQueues, page);
+    const controller = new PuppeteerInstanceController(bi, this.transporterMessaging, page);
     this.channelControlllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });

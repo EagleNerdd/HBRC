@@ -2,7 +2,7 @@
  * Provide a way to control electron BrowserWindow by puppeteer
  */
 
-import { App, BrowserWindow } from 'electron';
+import { app, App, BrowserWindow } from 'electron';
 import getPort from 'get-port';
 import retry from 'async-retry';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
@@ -13,16 +13,16 @@ export class PuppeteerElectron {
   private browser?: Browser;
   private windowPageMap = new Map<string, { window: BrowserWindow; page: Page }>();
   private _isReady = false;
-  constructor(private readonly app: App) {}
+  constructor() {}
 
   async beforeAppReady(): Promise<void> {
-    if (this.app.isReady()) {
+    if (app.isReady()) {
       throw new Error('Must be called at startup before the electron app is ready.');
     }
 
     const actualPort = await getPort({ host: '127.0.0.1', port: 9219 });
-    this.app.commandLine.appendSwitch('remote-debugging-port', `${actualPort}`);
-    this.app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1');
+    app.commandLine.appendSwitch('remote-debugging-port', `${actualPort}`);
+    app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1');
   }
 
   isReady() {
@@ -30,14 +30,14 @@ export class PuppeteerElectron {
   }
 
   async afterAppReady(): Promise<void> {
-    if (!this.app.isReady()) {
+    if (!app.isReady()) {
       throw new Error('Please connect after the app is ready.');
     }
     if (!puppeteer) {
       throw new Error("The parameter 'puppeteer' was not passed in.");
     }
 
-    const port = this.app.commandLine.getSwitchValue('remote-debugging-port');
+    const port = app.commandLine.getSwitchValue('remote-debugging-port');
     if (!port) {
       throw new Error('Please call initialize before calling connect.');
     }

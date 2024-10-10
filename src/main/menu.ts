@@ -2,7 +2,7 @@ import { App, BrowserWindow, Menu, shell } from 'electron';
 import { DebugWindow } from './windows/Debug';
 import { PLATFORM } from '@shared/constants/main';
 import { GITHUB_REPOSITORY_URL, MenuItemId, ON_MENU_ITEM_CLICKED, ON_MENU_ITEM_PROCESSED } from '@shared/constants';
-import Application from './app';
+import { HBRCApplication } from '@main/app/base';
 import { AboutUsWindow } from './windows/AboutUs';
 
 export const initMenu = (app: App) => {
@@ -25,7 +25,7 @@ export const initMenu = (app: App) => {
 
 export const initMenuForMainWindow = (
   app: App,
-  mainApp: Application,
+  mainApp: HBRCApplication,
   mainWindow: BrowserWindow,
   options?: { excludeMenuItemIds?: MenuItemId[]; includeMenuItemIds?: MenuItemId[] }
 ) => {

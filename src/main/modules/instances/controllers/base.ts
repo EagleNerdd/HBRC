@@ -1,6 +1,6 @@
 import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
-import { Queue } from '@shared/queue';
 import { OutgoingTransportMessage } from '@shared/types/message';
+import { TransporterMessaging } from '@main/modules/transporters';
 
 export interface BrowserInstanceController {
   browserEval(code: string): Promise<any>;
@@ -13,13 +13,7 @@ export interface BrowserInstanceController {
 }
 
 export abstract class BaseBrowserInstanceController implements BrowserInstanceController {
-  constructor(
-    protected instance: BrowserInstance,
-    protected readonly messageQueues: {
-      ttc: Queue;
-      ctt: Queue;
-    }
-  ) {}
+  constructor(protected instance: BrowserInstance, protected readonly transporterMessaging: TransporterMessaging) {}
 
   async setInstance(instance: BrowserInstance) {
     this.instance = instance;
@@ -45,7 +39,7 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
         payload: data,
       },
     };
-    await this.messageQueues.ctt.push({ transporter: options?.transporter, payload: msg });
+    await this.transporterMessaging.sendMessage(msg, options);
   }
 
   init(): Promise<void> {
