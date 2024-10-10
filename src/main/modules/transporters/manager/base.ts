@@ -23,7 +23,6 @@ export type TransportersOptions = {
   [key: string]: {
     type: TransporterType;
     options: TransporterOptions;
-    isDefault?: boolean;
   };
 };
 

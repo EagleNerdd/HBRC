@@ -1,5 +1,5 @@
 import { ISubscriptionMap, MqttClient } from 'mqtt';
-import { BaseTransporter } from './base';
+import { BaseTransporter, BaseTransporterOptions } from './base';
 
 const mqtt = require('mqtt');
 
@@ -11,12 +11,12 @@ export type MqttTransporterOptions = {
   publishTopic: string;
   subscribeTopics: string[];
   qos?: 0 | 1 | 2;
-};
+} & BaseTransporterOptions;
 
 export class MqttTransporter extends BaseTransporter {
   private mqttClient?: MqttClient;
-  constructor(protected name: string, private readonly options: MqttTransporterOptions) {
-    super(name);
+  constructor(protected name: string, protected readonly options: MqttTransporterOptions) {
+    super(name, options);
     if (options.qos === undefined) {
       options.qos = 1;
     }
@@ -55,7 +55,7 @@ export class MqttTransporter extends BaseTransporter {
       this.logger.debug('mqtt disconnected', e);
     });
   }
-  async send(data: any) {
+  async _send(data: any) {
     if (!this.mqttClient) {
       throw new Error('mqtt client not connected');
     }

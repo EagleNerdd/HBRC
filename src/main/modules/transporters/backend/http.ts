@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { BaseTransporter } from './base';
+import { BaseTransporter, BaseTransporterOptions } from './base';
 
 export type HttpTransporterOptions = {
   puller?: {
@@ -13,14 +13,14 @@ export type HttpTransporterOptions = {
     params?: Record<string, string>;
     headers?: Record<string, string>;
   };
-};
+} & BaseTransporterOptions;
 
 export class HttpTransporter extends BaseTransporter {
   private puller: AxiosInstance;
   private pusher: AxiosInstance;
   private interVal = undefined;
-  constructor(protected name: string, private readonly options: HttpTransporterOptions) {
-    super(name);
+  constructor(protected name: string, protected readonly options: HttpTransporterOptions) {
+    super(name, options);
     if (options.puller) {
       this.puller = axios.create({
         baseURL: options.puller.url,
@@ -62,7 +62,7 @@ export class HttpTransporter extends BaseTransporter {
     this.onConnectedCallback && this.onConnectedCallback();
   }
 
-  async send(data: any) {
+  async _send(data: any) {
     if (!this.pusher) {
       this.logger.warn('pusher not defined so that ignore message', { data });
       return;

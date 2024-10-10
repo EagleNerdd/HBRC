@@ -4,7 +4,7 @@ export class DummyTransporter extends BaseTransporter {
   constructor(name: string) {
     super(name);
   }
-  async send(data: any): Promise<void> {
+  async _send(data: any): Promise<void> {
     console.log('sending data', data);
   }
   connect() {

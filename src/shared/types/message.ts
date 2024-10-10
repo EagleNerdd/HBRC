@@ -27,4 +27,5 @@ export type OutgoingTransportMessage = {
     action: 'info';
     payload: any;
   };
+  extra?: any;
 };

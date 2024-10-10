@@ -26,42 +26,38 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
     this.ttcMessagesQueue.onMessage(cb);
   }
 
-  private async initDefaultTransporter() {
+  async init() {
     const defaultTransporter = this.defaultTransporter;
-    if (defaultTransporter) {
-      this.clientEvents.onTransporterStatusChanged.emit('connecting');
-      defaultTransporter.connect();
-      defaultTransporter.onConnected(async () => {
-        this.clientEvents.onTransporterStatusChanged.emit('connected');
-      });
-      defaultTransporter.onReceive(async (message: IncommingTransportMessage) => {
-        if (message.controlInstance || message.manageInstance) {
-          await this.ttcMessagesQueue.push(message);
-        } else {
-          this.logger.warn('Unknown message type', { message });
-        }
-      });
-
-      this.cttMessagesQueue.onMessage(async (data: { message: OutgoingTransportMessage; transporter?: string }) => {
-        let transporter = defaultTransporter;
-        if (data.transporter) {
-          transporter = this.getTransporter(data.transporter);
-        }
-        if (transporter) {
-          await transporter.send(data.message);
-        } else {
-          throw new Error('Not found transporter');
-        }
-      });
-      this.ttcMessagesQueue.start();
-      this.cttMessagesQueue.start();
-    } else {
+    if (!defaultTransporter) {
       throw new Error('Default transporter not found');
     }
-  }
+    this.clientEvents.onTransporterStatusChanged.emit('connecting');
+    defaultTransporter.connect();
+    defaultTransporter.onConnected(async () => {
+      this.clientEvents.onTransporterStatusChanged.emit('connected');
+    });
+    defaultTransporter.onReceive(async (message: IncommingTransportMessage) => {
+      if (message.controlInstance || message.manageInstance) {
+        await this.ttcMessagesQueue.push(message);
+      } else {
+        this.logger.warn('Unknown message type', { message });
+      }
+    });
+    this.cttMessagesQueue.onMessage(async (data: { message: OutgoingTransportMessage; transporter?: string }) => {
+      let transporter = defaultTransporter;
+      if (data.transporter) {
+        transporter = this.getTransporter(data.transporter);
+      }
+      if (transporter) {
+        let message = data.message;
+        await transporter.send(message);
+      } else {
+        throw new Error('Not found transporter');
+      }
+    });
+    this.ttcMessagesQueue.start();
+    this.cttMessagesQueue.start();
 
-  async init() {
-    await this.initDefaultTransporter();
     for (const [k, v] of Object.entries(this.transporters)) {
       if (k != 'default') {
         v.connect();
