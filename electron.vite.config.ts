@@ -23,6 +23,7 @@ export default defineConfig({
     },
   },
   preload: {
+    plugins: [swcPlugin()],
     resolve: resolveD,
     // ...
   },
