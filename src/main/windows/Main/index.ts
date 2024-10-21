@@ -4,7 +4,7 @@ import { createWindow } from '@main/factories';
 import { ENVIRONMENT, MenuItemId } from '@shared/constants';
 import { PRELOAD_FILE_PATH } from '@main/config';
 import { initMenuForMainWindow } from '@main/menu';
-import Application from '@main/app';
+import { Application } from '@main/app';
 
 export async function MainWindow(mainApp: Application) {
   const mainWindow = createWindow({

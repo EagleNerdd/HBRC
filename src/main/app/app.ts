@@ -22,7 +22,7 @@ import { MenuItemId } from '@shared/constants';
 import { HBRCAppInfo, HBRCApplication, HBRCAppOptions } from './base';
 import { createLogger, Logger } from '@main/logging';
 
-export class Application implements HBRCApplication {
+class Application implements HBRCApplication {
   private events: ClientEvents;
   private kvStorage: KVStorage;
   private clientKvStorage: ClientKvStorage;
@@ -173,4 +173,4 @@ export class Application implements HBRCApplication {
   }
 }
 
-export default Application;
+export { Application };

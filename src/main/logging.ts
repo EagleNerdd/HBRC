@@ -1,11 +1,9 @@
-import winston, { log, Logger } from 'winston';
-import path from 'path';
-import { app } from 'electron';
+import winston, { Logger } from 'winston';
 import { ENVIRONMENT } from '@shared/constants';
+import { getLogFilePath } from '@main/utils';
 
 export const createLogger = (name: string, level: string) => {
-  const filename = path.join(app.getAppPath(), 'out', 'logs', `${name}`);
-
+  const filename = getLogFilePath(name);
   const logger = winston.createLogger({
     level,
     format: winston.format.json(),

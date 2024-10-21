@@ -1,6 +1,4 @@
 import { FSDB } from 'file-system-db';
-import { app } from 'electron';
-import { join } from 'path';
 import { PuppeteerElectron } from '@main/pie';
 import { PuppeteerInstanceController, BrowserInstanceController } from './controllers';
 import { Page } from 'puppeteer-core';
@@ -9,6 +7,7 @@ import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/typ
 import { Logger, createLogger } from '@main/logging';
 import { ClientEvents } from '../events';
 import { TransporterMessaging } from '../transporters';
+import { getDataPath } from '@main/utils';
 
 class BrowserInstanceManager {
   private db: FSDB;
@@ -24,8 +23,8 @@ class BrowserInstanceManager {
   }
 
   async init() {
-    const appPath = app.getAppPath();
-    const dbPath = join(appPath, 'out', 'data', 'instances.json');
+    const dbPath = getDataPath('instances.json');
+    this.logger.debug('init', { dbPath });
     this.db = new FSDB(dbPath, true);
     this.clientEvents.onInstanceUpdated.listen(({ sessionId, updated }) => {
       if (updated.status) {

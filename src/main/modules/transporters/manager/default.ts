@@ -1,10 +1,9 @@
-import path from 'path';
-import { app as electonApp } from 'electron';
 import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
 import { BaseTransporterManager, TransporterMessaging } from './base';
 import { Queue } from '@shared/queue/base';
 import { FileQueue } from '@main/modules/queue';
 import { ClientEvents } from '@main/modules/events';
+import { getDataPath } from '@main/utils';
 
 export class DefaultTransporterManager extends BaseTransporterManager implements TransporterMessaging {
   private ttcMessagesQueue: Queue; // TransporterToController: this queue pass message from transporter to controller
@@ -12,10 +11,10 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
 
   constructor(clientEvents: ClientEvents) {
     super(clientEvents);
-    this.ttcMessagesQueue = new FileQueue(path.join(electonApp.getAppPath(), 'out', 'data', 'message_queues', 'ttc'), {
+    this.ttcMessagesQueue = new FileQueue(getDataPath('message_queues', 'ttc'), {
       messageMaxRequeueNumber: 10,
     });
-    this.cttMessagesQueue = new FileQueue(path.join(electonApp.getAppPath(), 'out', 'data', 'message_queues', 'ctt'));
+    this.cttMessagesQueue = new FileQueue(getDataPath('message_queues', 'ctt'));
   }
 
   async sendMessage(message: OutgoingTransportMessage, options?: { transporter?: string }): Promise<void> {
