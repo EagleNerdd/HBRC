@@ -1,6 +1,7 @@
 import { PreloadEventKey, PreloadEventListener } from '@shared/event/preload';
 import { MenuItemId } from '@shared/constants';
 import { TransporterStatus } from './transporter';
+import { MainEventKey } from '@shared/event/main';
 
 export type ApplicationAPI = {
   setApplicationOptions: (options: any) => Promise<any>;
@@ -11,6 +12,7 @@ export type ApplicationAPI = {
   unsubscribeEvent: (subscriptionId: number) => void;
   subscribeEvents: (eventKeys: PreloadEventKey[], callback: PreloadEventListener<any>) => number[];
   unsubscribeEvents: (subscriptionIds: number[]) => void;
+  emitMainEvent: (eventKey: MainEventKey, data?: any) => void;
 };
 
 export type BrowserInstanceManagerAPI = {
@@ -31,4 +33,6 @@ export type ApplicationInfo = {
   options?: ApplicationOptions;
   transporterStatus: TransporterStatus;
   version: string;
+  userPath: string;
+  isDebug: boolean;
 };

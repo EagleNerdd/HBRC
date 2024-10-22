@@ -11,6 +11,7 @@ import {
   STOP_INSTANCE,
 } from '@shared/constants/ipcs';
 import { Application } from '../app';
+import { MainEventKey } from '@shared/event/main';
 
 export const registerIPCs = (app: Application) => {
   // InstanceManager
@@ -52,5 +53,17 @@ export const registerIPCs = (app: Application) => {
 
   ipcMain.handle(GET_APPLICATION_INFO, async (...args) => {
     return await app.getAppInfo();
+  });
+
+  // Events
+  ipcMain.on('main-event', (event, data) => {
+    const { eventKey, eventData } = data || {};
+    switch (eventKey) {
+      case MainEventKey.CLICK_ENABLE_DEBUG:
+        app.getEvents().onDebugEnableClicked.emit(app);
+        break;
+      default:
+        break;
+    }
   });
 };

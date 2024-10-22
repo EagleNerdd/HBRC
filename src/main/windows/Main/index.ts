@@ -4,9 +4,10 @@ import { createWindow } from '@main/factories';
 import { ENVIRONMENT, MenuItemId } from '@shared/constants';
 import { PRELOAD_FILE_PATH } from '@main/config';
 import { initMenuForMainWindow } from '@main/menu';
-import { Application } from '@main/app';
+import { HBRCApplication } from '@main/app';
+import { isDebug } from '@main/utils';
 
-export async function MainWindow(mainApp: Application) {
+export async function MainWindow(mainApp: HBRCApplication) {
   const mainWindow = createWindow({
     id: 'main',
     title: 'Headless Browser Remote Controller',
@@ -25,8 +26,10 @@ export async function MainWindow(mainApp: Application) {
     },
   });
 
+  const autoOpenDevTools = ENVIRONMENT.IS_DEBUG && isDebug();
+
   mainWindow.webContents.on('did-finish-load', () => {
-    if (ENVIRONMENT.IS_LOCAL) {
+    if (autoOpenDevTools) {
       mainWindow.webContents.openDevTools({ mode: 'undocked' });
     }
   });

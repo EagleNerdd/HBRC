@@ -13,6 +13,7 @@ import { MenuItemId } from '@shared/constants';
 import { PreloadEventKey, PreloadEventListener } from '@shared/event/preload';
 import { PreloadEvents } from './events';
 import { TransporterStatus } from '@shared/types/transporter';
+import { MainEventKey } from '@shared/event/main';
 
 const preloadEvents = new PreloadEvents();
 
@@ -60,5 +61,8 @@ contextBridge.exposeInMainWorld('applicationAPI', {
   },
   onMenuItemProcessed: <D>(menuItemId: MenuItemId, callback: PreloadEventListener<D>) => {
     return preloadEvents.subscribeMenuItemProcessedEvent<D>(menuItemId, callback);
+  },
+  emitMainEvent: (eventKey: MainEventKey, data: any) => {
+    ipcRenderer.send('main-event', { eventKey, eventData: data });
   },
 });

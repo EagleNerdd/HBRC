@@ -10,8 +10,8 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
-import { ENVIRONMENT } from '@shared/constants';
 import { BrowserInstance } from '@shared/types';
+import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 
 const DeleteBtn = ({ disabled, onConfirm }) => {
   return (
@@ -27,8 +27,6 @@ const DeleteBtn = ({ disabled, onConfirm }) => {
     </Popconfirm>
   );
 };
-
-const IS_DEBUG = ENVIRONMENT.IS_DEBUG;
 
 const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   const { sessionId } = instance;
@@ -80,6 +78,8 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
 
 export default function BrowserInstanceComponent({ instance }: { instance: BrowserInstance }) {
   const { status, sessionId } = instance;
+
+  const { isDebug } = useApplicationInfo();
 
   const instanceManager = useBrowserInstanceManager();
 
@@ -137,7 +137,7 @@ export default function BrowserInstanceComponent({ instance }: { instance: Brows
         }}
       />
     );
-    if (IS_DEBUG) {
+    if (isDebug) {
       actions.push(
         <SendOutlined
           key="call"

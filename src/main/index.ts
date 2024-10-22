@@ -20,7 +20,7 @@ makeAppWithSingleInstanceLock(async () => {
     initMenu(app);
     await hicApp.init();
   } catch (e) {
-    logger.error('Init application got error', { error: e });
+    logger.error('Init application got error', { error: e.message });
     app.quit();
   }
 });

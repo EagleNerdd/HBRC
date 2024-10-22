@@ -4,6 +4,7 @@ import { PLATFORM } from '@shared/constants/main';
 import { GITHUB_REPOSITORY_URL, MenuItemId, ON_MENU_ITEM_CLICKED, ON_MENU_ITEM_PROCESSED } from '@shared/constants';
 import { HBRCApplication } from '@main/app/base';
 import { AboutUsWindow } from './windows/AboutUs';
+import { isDebug } from './utils';
 
 export const initMenu = (app: App) => {
   const macMenu = [
@@ -38,30 +39,34 @@ export const initMenuForMainWindow = (
     mainWindow.webContents.send(ON_MENU_ITEM_PROCESSED, menuItemId, data);
   };
 
+  const serverSubmenu = [
+    {
+      id: MenuItemId.DISCONNECT_SERVER,
+      label: 'Disconnect',
+      click: async () => {
+        await mainApp.disconnectServer();
+        sendMenuClickedToRenderer(MenuItemId.DISCONNECT_SERVER);
+      },
+    },
+    {
+      label: 'Exit',
+      click: () => app.quit(),
+    },
+  ];
+  if (isDebug()) {
+    serverSubmenu.push({
+      id: MenuItemId.DEBUG,
+      label: 'Debug',
+      click: async () => {
+        await DebugWindow();
+      },
+    });
+  }
+
   const serverMenu: any = {
     id: MenuItemId.SERVER,
     label: 'Server',
-    submenu: [
-      {
-        id: MenuItemId.DISCONNECT_SERVER,
-        label: 'Disconnect',
-        click: async () => {
-          await mainApp.disconnectServer();
-          sendMenuClickedToRenderer(MenuItemId.DISCONNECT_SERVER);
-        },
-      },
-      {
-        id: MenuItemId.DEBUG,
-        label: 'Debug',
-        click: async () => {
-          await DebugWindow();
-        },
-      },
-      {
-        label: 'Exit',
-        click: () => app.quit(),
-      },
-    ],
+    submenu: serverSubmenu,
   };
 
   const manageMenu = {

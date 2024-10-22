@@ -17,6 +17,10 @@ export class Event<D> {
       next: listener,
     });
   }
+
+  getRxjsObservable() {
+    return this.subject.asObservable();
+  }
 }
 
 export class FireLatestOnAddEvent<D> extends Event<D> {

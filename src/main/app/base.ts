@@ -12,6 +12,8 @@ export type HBRCAppInfo = {
   options: HBRCAppOptions;
   transporterStatus: TransporterStatus;
   version: string;
+  userPath: string;
+  isDebug: boolean;
 };
 
 export interface HBRCApplication {
@@ -20,4 +22,5 @@ export interface HBRCApplication {
   setOptions(options: HBRCAppOptions): Promise<void>;
   getInstanceManager(): BrowserInstanceManager;
   disconnectServer(): Promise<void>;
+  enableDebugMode(): void;
 }
