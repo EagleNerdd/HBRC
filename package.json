@@ -1,6 +1,6 @@
 {
   "name": "headless-browser-remote-controller",
-  "version": "0.0.0",
+  "version": "0.0.1-alpha",
   "description": "Headless Browser Remote Controller is an open-source project designed to remotely control browsers for automation testing and other purposes.",
   "main": "./out/main/index.js",
   "repository": "https://github.com/cuongnguyen1996/HBRC",
@@ -14,7 +14,7 @@
     "prebuild": "electron-vite build",
     "app:dir": "electron-builder --dir",
     "app:dist": "electron-builder",
-    "build:win": "yarn prebuild && electron-builder build --win --config --publish never"
+    "build:win": "yarn prebuild && electron-builder build --win --config --publish always"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.34.1",

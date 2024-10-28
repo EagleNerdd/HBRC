@@ -2,8 +2,6 @@ name: Build Electron App
 
 on:
   push:
-    branches:
-      - develop
     tags:
       - 'v*'
 
@@ -26,9 +24,5 @@ jobs:
       - name: Package app
         run: |
           yarn build:win
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4.4.3
-        with:
-          name: hbrc-windows
-          path: dist/hbrc-0.0.0-setup.exe
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
