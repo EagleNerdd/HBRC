@@ -14,7 +14,7 @@
     "prebuild": "electron-vite build",
     "app:dir": "electron-builder --dir",
     "app:dist": "electron-builder",
-    "build:win": "yarn prebuild && electron-builder build --win --config"
+    "build:win": "yarn prebuild && electron-builder build --win --config --publish never"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.34.1",
