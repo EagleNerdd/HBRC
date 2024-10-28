@@ -1,14 +1,14 @@
 import { app } from 'electron';
 import path from 'path';
 
-let _isDebug = false;
+let _isDebuging = false;
 
-const setDebug = (val: boolean) => {
-  _isDebug = val;
+const setDebugging = (val: boolean) => {
+  _isDebuging = val;
 };
 
-const isDebug = () => {
-  return _isDebug;
+const isDebugging = () => {
+  return _isDebuging;
 };
 
 const getDataPath = (...paths: any[]) => {
@@ -27,4 +27,4 @@ const getLogFilePath = (...paths: any[]) => {
   }
 };
 
-export { getDataPath, getLogFilePath, isDebug, setDebug };
+export { getDataPath, getLogFilePath, isDebugging, setDebugging };

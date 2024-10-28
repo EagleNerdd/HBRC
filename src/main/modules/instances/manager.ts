@@ -7,7 +7,7 @@ import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/typ
 import { Logger, createLogger } from '@main/logging';
 import { ClientEvents } from '../events';
 import { TransporterMessaging } from '../transporters';
-import { getDataPath, isDebug } from '@main/utils';
+import { getDataPath, isDebugging } from '@main/utils';
 
 class BrowserInstanceManager {
   private db: FSDB;
@@ -171,7 +171,7 @@ class BrowserInstanceManager {
   async showInstanceWindow(sessionId: string) {
     const { window } = this.pie.getWindowPage(sessionId) || {};
     if (window) {
-      if (isDebug()) {
+      if (isDebugging()) {
         window.webContents.openDevTools({ mode: 'right' });
       }
       window.show();

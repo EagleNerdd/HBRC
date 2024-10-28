@@ -4,7 +4,7 @@ import { PLATFORM } from '@shared/constants/main';
 import { GITHUB_REPOSITORY_URL, MenuItemId, ON_MENU_ITEM_CLICKED, ON_MENU_ITEM_PROCESSED } from '@shared/constants';
 import { HBRCApplication } from '@main/app/base';
 import { AboutUsWindow } from './windows/AboutUs';
-import { isDebug } from './utils';
+import { isDebugging } from './utils';
 
 export const initMenu = (app: App) => {
   const macMenu = [
@@ -53,7 +53,7 @@ export const initMenuForMainWindow = (
       click: () => app.quit(),
     },
   ];
-  if (isDebug()) {
+  if (isDebugging()) {
     serverSubmenu.push({
       id: MenuItemId.DEBUG,
       label: 'Debug',

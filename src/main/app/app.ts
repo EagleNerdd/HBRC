@@ -21,7 +21,7 @@ import { initMenuForMainWindow } from '../menu';
 import { MenuItemId } from '@shared/constants';
 import { HBRCAppInfo, HBRCApplication, HBRCAppOptions } from './base';
 import { createLogger, Logger } from '@main/logging';
-import { isDebug, setDebug } from '@main/utils';
+import { isDebugging, setDebugging } from '@main/utils';
 
 class Application implements HBRCApplication {
   private events: ClientEvents;
@@ -63,7 +63,7 @@ class Application implements HBRCApplication {
       transporterStatus: this.transporterManager.getStatus(),
       version: app.getVersion(),
       userPath: app.getPath('userData'),
-      isDebug: isDebug(),
+      isDebug: isDebugging(),
     };
   }
 
@@ -180,19 +180,24 @@ class Application implements HBRCApplication {
     return this.puppeteerElectron;
   }
 
-  enableDebugMode(): void {
-    if (!isDebug()) {
-      setDebug(true);
-      this.clientKvStorage.setItem('isDebug', true).then(() => {
-        this.eApp.relaunch();
-        this.eApp.quit();
-      });
+  setDebugMode(isEnableDebug: boolean): void {
+    const _isDebugging = isDebugging();
+    if (isEnableDebug && _isDebugging) {
+      return;
     }
+    if (!isEnableDebug && !_isDebugging) {
+      return;
+    }
+    setDebugging(isEnableDebug);
+    this.clientKvStorage.setItem('isDebug', isEnableDebug).then(() => {
+      this.eApp.relaunch();
+      this.eApp.quit();
+    });
   }
 
   async initDebugMode() {
     const storageDebug = !!(await this.clientKvStorage.getItem('isDebug'));
-    setDebug(storageDebug);
+    setDebugging(storageDebug);
   }
 }
 

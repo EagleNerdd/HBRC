@@ -5,7 +5,7 @@ import { ENVIRONMENT, MenuItemId } from '@shared/constants';
 import { PRELOAD_FILE_PATH } from '@main/config';
 import { initMenuForMainWindow } from '@main/menu';
 import { HBRCApplication } from '@main/app';
-import { isDebug } from '@main/utils';
+import { isDebugging } from '@main/utils';
 
 export async function MainWindow(mainApp: HBRCApplication) {
   const mainWindow = createWindow({
@@ -26,7 +26,7 @@ export async function MainWindow(mainApp: HBRCApplication) {
     },
   });
 
-  const autoOpenDevTools = ENVIRONMENT.IS_DEBUG && isDebug();
+  const autoOpenDevTools = ENVIRONMENT.IS_DEBUG && isDebugging();
 
   mainWindow.webContents.on('did-finish-load', () => {
     if (autoOpenDevTools) {

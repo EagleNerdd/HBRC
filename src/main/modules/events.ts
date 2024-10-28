@@ -4,20 +4,19 @@ import { BrowserInstance } from '@shared/types';
 
 import { filter, bufferWhen, debounceTime, map } from 'rxjs';
 import { HBRCApplication } from '@main/app';
+import { isDebugging } from '@main/utils';
 
 export class ClientEvents {
   // Main -> Renderer
-  onClientReady: Event<void>;
-  onTransporterStatusChanged: Event<TransporterStatus>;
-  onInstanceUpdated: Event<{ sessionId: string; updated: Partial<BrowserInstance> }>;
+  onClientReady: Event<void> = new Event();
+  onTransporterStatusChanged: Event<TransporterStatus> = new Event();
+  onInstanceUpdated: Event<{ sessionId: string; updated: Partial<BrowserInstance> }> = new Event();
 
   // Renderer -> Main
-  onDebugEnableClicked: Event<HBRCApplication>;
+  onDebugEnableClicked: Event<HBRCApplication> = new Event();
+  onToggleDebugMode: Event<HBRCApplication> = new Event();
+
   constructor() {
-    this.onClientReady = new Event();
-    this.onTransporterStatusChanged = new Event();
-    this.onInstanceUpdated = new Event();
-    this.onDebugEnableClicked = new Event();
     this.listenEnableDebug();
   }
 
@@ -30,7 +29,11 @@ export class ClientEvents {
       map((data) => data[0])
     );
     ob.subscribe((app: HBRCApplication) => {
-      app.enableDebugMode();
+      app.setDebugMode(!isDebugging());
+    });
+    // Toggle debug mode
+    this.onToggleDebugMode.listen((app: HBRCApplication) => {
+      app.setDebugMode(!isDebugging());
     });
   }
 }

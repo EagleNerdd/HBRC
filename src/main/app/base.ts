@@ -22,5 +22,5 @@ export interface HBRCApplication {
   setOptions(options: HBRCAppOptions): Promise<void>;
   getInstanceManager(): BrowserInstanceManager;
   disconnectServer(): Promise<void>;
-  enableDebugMode(): void;
+  setDebugMode(isDebug: boolean): void;
 }

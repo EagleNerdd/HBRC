@@ -62,6 +62,9 @@ export const registerIPCs = (app: Application) => {
       case MainEventKey.CLICK_ENABLE_DEBUG:
         app.getEvents().onDebugEnableClicked.emit(app);
         break;
+      case MainEventKey.TOGGLE_DEBUG:
+        app.getEvents().onToggleDebugMode.emit(app);
+        break;
       default:
         break;
     }
