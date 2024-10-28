@@ -38,7 +38,7 @@ jobs:
           fi
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: hbrc-${{ matrix.os }}
           path: dist/hbrc-0.0.0-setup.exe
