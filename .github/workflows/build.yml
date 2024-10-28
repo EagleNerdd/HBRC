@@ -1,0 +1,44 @@
+name: Build Electron App
+
+on:
+  push:
+    branches:
+      - develop
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Package app
+        run: |
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            yarn dist:linux
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            yarn dist:mac
+          elif [ "${{ matrix.os }}" == "windows-latest" ]; then
+            yarn build:win
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: hbrc-${{ matrix.os }}
+          path: dist/hbrc-0.0.0-setup.exe
