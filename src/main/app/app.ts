@@ -49,6 +49,7 @@ class Application implements HBRCApplication {
     this.events.onTransporterStatusChanged.listen(async (status) => {
       if (status == 'connected') {
         await this.pushAgentMessageToTransporter('info', { name: this.agentName });
+        await this.instanceManager.pushListInstanceMessage();
       }
     });
   }
