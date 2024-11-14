@@ -1,19 +1,28 @@
-import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
+import { BrowserInstance, BrowserInstanceInstruction, BrowserInstanceMessage } from '@shared/types';
 import { OutgoingTransportMessage } from '@shared/types/message';
 import { TransporterMessaging } from '@main/modules/transporters';
+import { ClientEvents } from '@main/modules/events';
 
 export interface BrowserInstanceController {
   browserEval(code: string): Promise<any>;
   init(): Promise<void>;
   postMessage(data: any): Promise<void>;
+  postInstanceMessage(message: BrowserInstanceMessage): Promise<void>;
   executeInstructions(instructions: BrowserInstanceInstruction[]): Promise<any>;
   executeInstruction(instruction: BrowserInstanceInstruction): Promise<any>;
   setInstance(instance: BrowserInstance): Promise<void>;
+  restart(): Promise<void>;
   destroy(): Promise<void>;
 }
 
 export abstract class BaseBrowserInstanceController implements BrowserInstanceController {
-  constructor(protected instance: BrowserInstance, protected readonly transporterMessaging: TransporterMessaging) {}
+  constructor(
+    protected instance: BrowserInstance,
+    protected readonly transporterMessaging: TransporterMessaging,
+    private readonly events: ClientEvents
+  ) {}
+
+  async restart() {}
 
   async setInstance(instance: BrowserInstance) {
     this.instance = instance;
@@ -40,6 +49,10 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
       },
     };
     await this.transporterMessaging.sendMessage(msg, options);
+  }
+
+  async postInstanceMessage(message: BrowserInstanceMessage) {
+    this.events.onInstanceMessage.emit({ sessionId: this.instance.sessionId, message });
   }
 
   init(): Promise<void> {

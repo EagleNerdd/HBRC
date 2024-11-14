@@ -6,6 +6,11 @@ export type BrowserInstanceInstruction = {
 
 export type BrowserInstanceStatus = 'Running' | 'Stopped' | 'Starting' | 'Stopping';
 
+export type BrowserInstanceMessage = {
+  level: 'info' | 'warn' | 'error' | 'success';
+  message: string;
+};
+
 export type BrowserInstance = {
   sessionId: string;
   name: string;

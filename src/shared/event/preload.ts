@@ -3,6 +3,7 @@ export enum PreloadEventKey {
   SERVER_DISCONNECTED = 'SERVER_DISCONNECTED',
   TRANSPORTER_STATUS_CHANGED = 'TRANSPORTER_STATUS_CHANGED',
   INSTANCE_UPDATED = 'INSTANCE_UPDATED',
+  INSTANCE_MESSAGE = 'INSTANCE_MESSAGE',
 }
 
 export type PreloadEventListener<D extends any> = (data?: D) => void;

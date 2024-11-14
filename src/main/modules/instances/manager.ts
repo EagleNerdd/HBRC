@@ -192,7 +192,7 @@ class BrowserInstanceManager {
   }
 
   private async createInstanceController(bi: BrowserInstance, page: Page) {
-    const controller = new PuppeteerInstanceController(bi, this.transporterMessaging, page);
+    const controller = new PuppeteerInstanceController(bi, this.transporterMessaging, this.clientEvents, page);
     this.channelControlllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });
@@ -203,7 +203,11 @@ class BrowserInstanceManager {
     this.db.set(bi.sessionId, bi);
   }
 
-  async updateInstance(sessionId: string, bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions'>>) {
+  async updateInstance(
+    sessionId: string,
+    bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions'>>,
+    restart = true
+  ) {
     const i = await this.getInstance(sessionId);
     if (!i) {
       throw new Error(`Instance not found: ${sessionId}`);
@@ -213,6 +217,9 @@ class BrowserInstanceManager {
     const controller = this.getController(sessionId);
     if (controller) {
       await controller.setInstance(newInstanceData);
+      if (restart) {
+        await controller.restart();
+      }
     }
   }
 

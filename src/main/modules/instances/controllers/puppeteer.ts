@@ -3,20 +3,21 @@ import { Page } from 'puppeteer-core';
 import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
 import { createLogger } from '@main/logging';
 import { TransporterMessaging } from '@main/modules/transporters';
+import { ClientEvents } from 'main/modules/events';
 
 const logger = createLogger('puppeteerInstanceController', 'debug');
 
 export class PuppeteerInstanceController extends BaseBrowserInstanceController {
-  constructor(instance: BrowserInstance, transporterMessaging: TransporterMessaging, protected readonly page: Page) {
-    super(instance, transporterMessaging);
+  constructor(
+    instance: BrowserInstance,
+    transporterMessaging: TransporterMessaging,
+    events: ClientEvents,
+    protected readonly page: Page
+  ) {
+    super(instance, transporterMessaging, events);
   }
 
-  async setInstance(instance: BrowserInstance) {
-    this.instance = instance;
-    await this.restart();
-  }
-
-  private async restart() {
+  async restart() {
     await this.page.reload();
     await this.executeInitInstructions();
   }
@@ -37,6 +38,7 @@ export class PuppeteerInstanceController extends BaseBrowserInstanceController {
 
   async init(): Promise<void> {
     await this.page.exposeFunction('bicPostMessage', this.postMessage.bind(this));
+    await this.page.exposeFunction('bicPostInstanceMessage', this.postInstanceMessage.bind(this));
     await this.executeInitInstructions();
   }
 

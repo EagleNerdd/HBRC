@@ -8,6 +8,7 @@ import {
   ON_SERVER_DISCONNECTED,
   ON_TRANSPORTER_STATUS_CHANGED,
   ON_INSTANCE_UPDATED,
+  ON_INSTANCE_MESSAGE,
 } from '@shared/constants/ipcs';
 import { MenuItemId } from '@shared/constants';
 import { PreloadEventKey, PreloadEventListener } from '@shared/event/preload';
@@ -39,6 +40,10 @@ ipcRenderer.on(ON_TRANSPORTER_STATUS_CHANGED, (_, status: TransporterStatus) => 
 
 ipcRenderer.on(ON_INSTANCE_UPDATED, (_, data: any) => {
   preloadEvents.emit(PreloadEventKey.INSTANCE_UPDATED, data);
+});
+
+ipcRenderer.on(ON_INSTANCE_MESSAGE, (_, data: any) => {
+  preloadEvents.emit(PreloadEventKey.INSTANCE_MESSAGE, data);
 });
 
 contextBridge.exposeInMainWorld('applicationAPI', {

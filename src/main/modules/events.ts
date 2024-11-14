@@ -1,6 +1,6 @@
 import { Event } from '@shared/event';
 import { TransporterStatus } from '@shared/types/transporter';
-import { BrowserInstance } from '@shared/types';
+import { BrowserInstance, BrowserInstanceMessage } from '@shared/types';
 
 import { filter, bufferWhen, debounceTime, map } from 'rxjs';
 import { HBRCApplication } from '@main/app';
@@ -11,6 +11,7 @@ export class ClientEvents {
   onClientReady: Event<void> = new Event();
   onTransporterStatusChanged: Event<TransporterStatus> = new Event();
   onInstanceUpdated: Event<{ sessionId: string; updated: Partial<BrowserInstance> }> = new Event();
+  onInstanceMessage: Event<{ sessionId: string; message: BrowserInstanceMessage }> = new Event();
 
   // Renderer -> Main
   onDebugEnableClicked: Event<HBRCApplication> = new Event();

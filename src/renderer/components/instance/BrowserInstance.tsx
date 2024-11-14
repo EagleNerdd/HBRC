@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button } from 'antd';
+import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button, Divider } from 'antd';
 import {
   SendOutlined,
   WindowsOutlined,
@@ -10,7 +10,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
-import { BrowserInstance } from '@shared/types';
+import { BrowserInstance, BrowserInstanceMessage } from '@shared/types';
 import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 
 const DeleteBtn = ({ disabled, onConfirm }) => {
@@ -76,7 +76,13 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   );
 };
 
-export default function BrowserInstanceComponent({ instance }: { instance: BrowserInstance }) {
+export default function BrowserInstanceComponent({
+  instance,
+  instanceMessage,
+}: {
+  instance: BrowserInstance;
+  instanceMessage?: BrowserInstanceMessage;
+}) {
   const { status, sessionId } = instance;
 
   const { isDebug } = useApplicationInfo();
@@ -171,14 +177,27 @@ export default function BrowserInstanceComponent({ instance }: { instance: Brows
     statusColor = 'orange';
   }
 
+  const renderInstanceMessage = () => {
+    if (!instanceMessage || status !== 'Running') return null;
+    return (
+      <>
+        <Divider />
+        <div dangerouslySetInnerHTML={{ __html: instanceMessage.message }} />
+      </>
+    );
+  };
+
   return (
     <Card actions={actions}>
       <Card.Meta
         title={instance.name}
         description={
           <div>
-            <Tag color={statusColor}>{status}</Tag>
-            <Tag color="blue">{instance.url}</Tag>
+            <div>
+              <Tag color={statusColor}>{status}</Tag>
+              <Tag color="blue">{instance.url}</Tag>
+            </div>
+            {renderInstanceMessage()}
           </div>
         }
       />

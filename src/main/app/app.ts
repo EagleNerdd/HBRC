@@ -10,6 +10,7 @@ import { MainWindow } from '../windows';
 import { registerIPCs } from '../ipcs';
 import {
   ON_APPLICATION_READY,
+  ON_INSTANCE_MESSAGE,
   ON_INSTANCE_UPDATED,
   ON_SERVER_DISCONNECTED,
   ON_TRANSPORTER_STATUS_CHANGED,
@@ -155,6 +156,9 @@ class Application implements HBRCApplication {
     });
     this.events.onInstanceUpdated.listen((data) => {
       this.sendMainWindowEvent(ON_INSTANCE_UPDATED, data);
+    });
+    this.events.onInstanceMessage.listen((data) => {
+      this.sendMainWindowEvent(ON_INSTANCE_MESSAGE, data);
     });
   }
 
