@@ -74,6 +74,7 @@ export class PuppeteerElectron {
       webPreferences: {
         partition: `persist:${identifier}`,
         allowRunningInsecureContent: true,
+        webSecurity: false,
       },
     });
     if (hideOnClose) {
