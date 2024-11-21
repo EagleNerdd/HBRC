@@ -22,7 +22,7 @@ import { initMenuForMainWindow } from '../menu';
 import { MenuItemId } from '@shared/constants';
 import { HBRCAppInfo, HBRCApplication, HBRCAppOptions } from './base';
 import { createLogger, Logger } from '@main/logging';
-import { isDebugging, setDebugging } from '@main/utils';
+import { isDebugging, setDebugging, updateUserAgents } from '@main/utils';
 
 class Application implements HBRCApplication {
   private events: ClientEvents;
@@ -127,6 +127,7 @@ class Application implements HBRCApplication {
     await this.puppeteerElectron.afterAppReady();
     await this.instanceManager.init();
     await this.initOptions();
+    await updateUserAgents();
     this._isReady = true;
     this.events.onClientReady.emit();
   }

@@ -7,7 +7,7 @@ import getPort from 'get-port';
 import retry from 'async-retry';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { randomString } from '@shared/utils/random';
-import { ENVIRONMENT } from '@shared/constants';
+import { getLatestUserAgent, isDebugging } from './utils';
 
 export class PuppeteerElectron {
   private browser?: Browser;
@@ -64,6 +64,7 @@ export class PuppeteerElectron {
     options?: {
       show?: boolean;
       hideOnClose?: boolean;
+      userAgent?: string;
     }
   ) {
     const { show, hideOnClose } = options || {};
@@ -83,9 +84,12 @@ export class PuppeteerElectron {
         window.hide();
       });
     }
-    await window.loadURL(url);
+    const userAgent = options?.userAgent || getLatestUserAgent('windows', 'chrome');
+    await window.loadURL(url, {
+      userAgent,
+    });
     await window.webContents.executeJavaScript(`window.hbrcWindowId = '${identifier}'`);
-    if (ENVIRONMENT.IS_DEBUG) {
+    if (isDebugging()) {
       window.webContents.openDevTools({ mode: 'undocked' });
     }
     const page = await this.getPage(identifier);

@@ -17,5 +17,6 @@ export type BrowserInstance = {
   url: string;
   status?: BrowserInstanceStatus;
   initInstructions?: BrowserInstanceInstruction[];
+  userAgent?: string;
   [key: string]: any;
 };

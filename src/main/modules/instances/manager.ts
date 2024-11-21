@@ -186,6 +186,7 @@ class BrowserInstanceManager {
     const { page } = await this.pie.newWindowPage(bi.url, bi.sessionId, {
       show: false,
       hideOnClose: true,
+      userAgent: bi.userAgent,
     });
     await this.createInstanceController(bi, page);
     this.logger.debug('loadInstanceWindowPage', bi);
