@@ -1,6 +1,14 @@
 import winston, { Logger } from 'winston';
-import { ENVIRONMENT } from '@shared/constants';
 import { getLogFilePath } from '@main/utils';
+import { app } from 'electron';
+
+const loggers: Record<string, Logger> = {};
+
+export const setLoggerLevel = (level: string) => {
+  for (const logger of Object.values(loggers)) {
+    logger.level = level;
+  }
+};
 
 export const createLogger = (name: string, level: string) => {
   const filename = getLogFilePath(name);
@@ -13,13 +21,14 @@ export const createLogger = (name: string, level: string) => {
       new winston.transports.File({ filename: `${filename}.log` }),
     ],
   });
-  if (ENVIRONMENT.IS_DEBUG) {
+  if (!app.isPackaged) {
     logger.add(
       new winston.transports.Console({
         format: winston.format.simple(),
       })
     );
   }
+  loggers[name] = logger;
   return logger;
 };
 

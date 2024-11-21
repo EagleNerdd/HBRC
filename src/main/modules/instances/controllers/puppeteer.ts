@@ -5,7 +5,7 @@ import { createLogger } from '@main/logging';
 import { TransporterMessaging } from '@main/modules/transporters';
 import { ClientEvents } from 'main/modules/events';
 
-const logger = createLogger('puppeteerInstanceController', 'debug');
+const logger = createLogger('puppeteerInstanceController', 'info');
 
 export class PuppeteerInstanceController extends BaseBrowserInstanceController {
   constructor(

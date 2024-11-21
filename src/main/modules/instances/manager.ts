@@ -19,7 +19,7 @@ class BrowserInstanceManager {
     private readonly transporterMessaging: TransporterMessaging,
     private readonly clientEvents: ClientEvents
   ) {
-    this.logger = createLogger('browserInstanceManager', 'debug');
+    this.logger = createLogger('browserInstanceManager', 'info');
   }
 
   async init() {

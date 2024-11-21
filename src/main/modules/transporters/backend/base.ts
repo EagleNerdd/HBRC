@@ -21,8 +21,7 @@ export abstract class BaseTransporter implements Transporter {
   protected logger: Logger;
 
   constructor(protected name: string, protected readonly options?: BaseTransporterOptions) {
-    this.logger = createLogger(`transporter.${name}`, 'debug');
-    this.logger.debug('created with options', { options });
+    this.logger = createLogger(`transporter.${name}`, 'info');
   }
 
   getMessageExtraData() {

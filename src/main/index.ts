@@ -4,7 +4,7 @@ import { Application } from './app';
 import { initMenu } from './menu';
 import { createLogger } from './logging';
 
-const logger = createLogger('entry', 'debug');
+const logger = createLogger('entry', 'info');
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
   // On certificate error we disable default behaviour (stop loading the page)

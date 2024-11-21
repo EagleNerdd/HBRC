@@ -21,7 +21,7 @@ import { getComputerName } from '@shared/utils/node';
 import { initMenuForMainWindow } from '../menu';
 import { MenuItemId } from '@shared/constants';
 import { HBRCAppInfo, HBRCApplication, HBRCAppOptions } from './base';
-import { createLogger, Logger } from '@main/logging';
+import { createLogger, Logger, setLoggerLevel } from '@main/logging';
 import { isDebugging, setDebugging, updateUserAgents } from '@main/utils';
 
 class Application implements HBRCApplication {
@@ -37,7 +37,7 @@ class Application implements HBRCApplication {
   private logger: Logger;
   private mainWindow?: BrowserWindow;
   constructor(private readonly eApp: ElectronApp, private options: HBRCAppOptions) {
-    this.logger = createLogger('app', 'debug');
+    this.logger = createLogger('app', 'info');
     this.kvStorage = new ElectronKvStorage();
     this.clientKvStorage = new ClientKvStorage(this.kvStorage);
     this.events = new ClientEvents();
@@ -203,6 +203,9 @@ class Application implements HBRCApplication {
 
   async initDebugMode() {
     const storageDebug = !!(await this.clientKvStorage.getItem('isDebug'));
+    if (storageDebug) {
+      setLoggerLevel('debug');
+    }
     setDebugging(storageDebug);
   }
 }
