@@ -1,13 +1,12 @@
 import { BaseBrowserInstanceController } from './base';
 import { Page } from 'puppeteer-core';
 import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
-import { createLogger } from '@main/logging';
+import { createLogger, Logger } from '@main/logging';
 import { TransporterMessaging } from '@main/modules/transporters';
 import { ClientEvents } from 'main/modules/events';
 
-const logger = createLogger('puppeteerInstanceController', 'info');
-
 export class PuppeteerInstanceController extends BaseBrowserInstanceController {
+  private logger: Logger;
   constructor(
     instance: BrowserInstance,
     transporterMessaging: TransporterMessaging,
@@ -15,6 +14,7 @@ export class PuppeteerInstanceController extends BaseBrowserInstanceController {
     protected readonly page: Page
   ) {
     super(instance, transporterMessaging, events);
+    this.logger = createLogger('puppeteerInstanceController');
   }
 
   async restart() {
@@ -27,7 +27,7 @@ export class PuppeteerInstanceController extends BaseBrowserInstanceController {
       try {
         await this.executeInstructions(this.instance.initInstructions);
       } catch (e) {
-        logger.error('Error executing init instructions', {
+        this.logger.error('Error executing init instructions', {
           error: e,
           instructions: this.instance.initInstructions,
           sessionId: this.instance.sessionId,

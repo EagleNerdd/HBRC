@@ -8,6 +8,7 @@ import { Logger, createLogger } from '@main/logging';
 import { ClientEvents } from '../events';
 import { TransporterMessaging } from '../transporters';
 import { getDataPath, isDebugging } from '@main/utils';
+import { ENVIRONMENT } from '@shared/constants';
 
 class BrowserInstanceManager {
   private db: FSDB;
@@ -19,11 +20,12 @@ class BrowserInstanceManager {
     private readonly transporterMessaging: TransporterMessaging,
     private readonly clientEvents: ClientEvents
   ) {
-    this.logger = createLogger('browserInstanceManager', 'info');
+    this.logger = createLogger('browserInstanceManager');
   }
 
   async init() {
-    const dbPath = getDataPath('instances.json');
+    const dbFileName = ENVIRONMENT.IS_LOCAL ? 'instances.local.json' : 'instances.json';
+    const dbPath = getDataPath(dbFileName);
     this.logger.debug('init', { dbPath });
     this.db = new FSDB(dbPath, true);
     this.clientEvents.onInstanceUpdated.listen(({ sessionId, updated }) => {

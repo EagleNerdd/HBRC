@@ -37,7 +37,7 @@ class Application implements HBRCApplication {
   private logger: Logger;
   private mainWindow?: BrowserWindow;
   constructor(private readonly eApp: ElectronApp, private options: HBRCAppOptions) {
-    this.logger = createLogger('app', 'info');
+    this.logger = createLogger('app');
     this.kvStorage = new ElectronKvStorage();
     this.clientKvStorage = new ClientKvStorage(this.kvStorage);
     this.events = new ClientEvents();

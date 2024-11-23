@@ -4,14 +4,22 @@ import { app } from 'electron';
 
 const loggers: Record<string, Logger> = {};
 
+let logLevel = 'info';
+
 export const setLoggerLevel = (level: string) => {
+  logLevel = level;
   for (const logger of Object.values(loggers)) {
     logger.level = level;
   }
 };
 
-export const createLogger = (name: string, level: string) => {
+export const createLogger = (name: string, level?: string) => {
+  if (loggers[name]) {
+    return loggers[name];
+  }
   const filename = getLogFilePath(name);
+  level = level || logLevel;
+  console.log('createLogger', name, level, filename, logLevel);
   const logger = winston.createLogger({
     level,
     format: winston.format.json(),
