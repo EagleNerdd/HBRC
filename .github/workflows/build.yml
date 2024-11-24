@@ -21,8 +21,14 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Package app
+      - name: Package windows x64
         run: |
           yarn build:win
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
+
+      - name: Package windows ia32
+        run: |
+          yarn build:win --ia32
         env:
           GH_TOKEN: ${{ secrets.PAT_GITHUB_TOKEN }}
