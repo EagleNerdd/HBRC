@@ -60,9 +60,14 @@ export class MqttTransporter extends BaseTransporter {
       throw new Error('mqtt client not connected');
     }
     const { publishTopic } = this.options;
-    const message = JSON.stringify(data);
-    this.logger.debug('send message', { message, publishTopic });
-    this.mqttClient.publish(publishTopic, message);
+    try {
+      const message = JSON.stringify(data);
+      this.mqttClient.publish(publishTopic, message);
+      this.logger.debug('send message success', { message, publishTopic });
+    } catch (e) {
+      this.logger.error('send message failed', { data, publishTopic, error: e.toString() });
+      throw e;
+    }
   }
 
   private onMessage(topic: string, message: Buffer) {

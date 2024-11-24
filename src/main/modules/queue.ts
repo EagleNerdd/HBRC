@@ -67,7 +67,7 @@ export class FileQueue implements Queue {
               retryData.retryCount++;
               this.messageRequeueMap.set(msgId, retryData);
               const delayTime = Math.pow(2, retryData.retryCount) * 1000;
-              console.debug('requeue message', { delayTime, retryData, data });
+              // console.debug('requeue message', { delayTime, retryData, data });
               setTimeout(async () => {
                 await rollback();
               }, delayTime);

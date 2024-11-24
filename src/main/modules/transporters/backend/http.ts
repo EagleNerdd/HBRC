@@ -67,10 +67,15 @@ export class HttpTransporter extends BaseTransporter {
       this.logger.warn('pusher not defined so that ignore message', { data });
       return;
     }
-    this.logger.debug('sending message', { data });
-    const resp = await this.pusher.post('', data);
-    if (resp.status >= 400) {
-      this.logger.warn('message send failed', { resp: resp.data });
+    try {
+      const resp = await this.pusher.post('', data);
+      if (resp.status >= 400) {
+        throw new Error(`message send failed: Status[${resp.status}] - StatusText[${resp.statusText}] - ${resp.data}`);
+      }
+      this.logger.debug('send message success', { data });
+    } catch (e) {
+      this.logger.error('send message failed', { data, error: e.toString() });
+      throw e;
     }
   }
 }
