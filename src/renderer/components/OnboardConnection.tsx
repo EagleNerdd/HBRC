@@ -3,7 +3,17 @@ import { useAppContext } from '@renderer/context/app';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import { Button, Col, Flex, Input, Row, Layout } from 'antd';
-import { b64DecodeString } from '@shared/utils/crypto';
+import { urlSafeB64DecodeString, b64DecodeString } from '@shared/utils/crypto';
+
+const decodeConnectionString = (connectionString: string) => {
+  let decodedConnectionString = '';
+  try {
+    decodedConnectionString = b64DecodeString(connectionString);
+  } catch (e) {
+    decodedConnectionString = urlSafeB64DecodeString(connectionString);
+  }
+  return JSON.parse(decodedConnectionString);
+};
 
 export default function OnboardConnection() {
   const [connectionString, setConnectionString] = React.useState('');
@@ -21,7 +31,7 @@ export default function OnboardConnection() {
 
   const handleConnectionString = async () => {
     try {
-      const appOptions = JSON.parse(b64DecodeString(connectionString));
+      const appOptions = decodeConnectionString(connectionString);
       await setApplicationOptions.mutateAsync(appOptions);
     } catch (e) {
       messageApi.error('Invalid connection string');
