@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
   GET_INSTANCES,
   ADD_INSTANCE,
+  UPDATE_INSTANCE,
   DELETE_INSTANCE,
   SHOW_INSTANCE_WINDOW,
   SET_APPLICATION_OPTIONS,
@@ -22,6 +23,10 @@ export const registerIPCs = (app: Application) => {
   ipcMain.handle(ADD_INSTANCE, async (...args) => {
     const [_, name, url] = args;
     return await app.getInstanceManager().addInstance(name, url);
+  });
+  ipcMain.handle(UPDATE_INSTANCE, async (...args) => {
+    const [_, sessionId, updatedData, options] = args;
+    return await app.getInstanceManager().updateInstance(sessionId, updatedData, options);
   });
   ipcMain.handle(DELETE_INSTANCE, async (...args) => {
     const [_, sessionId] = args;

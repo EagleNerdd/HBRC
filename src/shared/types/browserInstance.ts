@@ -18,5 +18,6 @@ export type BrowserInstance = {
   status?: BrowserInstanceStatus;
   initInstructions?: BrowserInstanceInstruction[];
   userAgent?: string;
+  attributes?: Record<string, string>;
   [key: string]: any;
 };

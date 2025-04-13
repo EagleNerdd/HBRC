@@ -20,7 +20,7 @@ export type OutgoingTransportMessage = {
     payload: any;
   };
   instanceManager?: {
-    action: 'listInstance' | 'addInstance' | 'removeInstance';
+    action: 'listInstance' | 'addInstance' | 'removeInstance' | 'updateInstance';
     payload: any;
   };
   agent?: {

@@ -23,6 +23,15 @@ export type BrowserInstanceManagerAPI = {
   callInstanceFunction: (sessionId: string, method: string, ...args: any[]) => Promise<any>;
   startInstance: (sessionId: string) => Promise<any>;
   stopInstance: (sessionId: string) => Promise<any>;
+  updateInstance: (
+    sessionId: string,
+    payload: { attributes?: Record<string, string> },
+    options?: {
+      restart?: boolean;
+      notifyToTransporter?: boolean;
+      notifyToRenderer?: boolean;
+    }
+  ) => Promise<any>;
 };
 
 export type ApplicationOptions = {

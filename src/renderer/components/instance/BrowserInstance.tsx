@@ -1,11 +1,13 @@
-import React from 'react';
-import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button, Divider } from 'antd';
+import React, { useEffect } from 'react';
+import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button, Divider, Space } from 'antd';
 import {
   SendOutlined,
   WindowsOutlined,
   DeleteOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
+  TagOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
@@ -76,6 +78,89 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   );
 };
 
+const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
+  const [form] = Form.useForm();
+  const instanceManager = useBrowserInstanceManager();
+  const updateInstance = useMutation({
+    mutationFn: ({ attributes }: { attributes: Record<string, string> }) =>
+      instanceManager.updateInstance(
+        instance.sessionId,
+        { attributes },
+        {
+          restart: false,
+          notifyToTransporter: true,
+          notifyToRenderer: true,
+        }
+      ),
+    onSuccess: () => {
+      message.success('Update attributes success');
+      setIsOpen(false);
+    },
+    onError(error, variables, context) {
+      console.log({ error, variables, context });
+      message.error('Update attributes failed');
+    },
+  });
+  useEffect(() => {
+    if (instance) {
+      form.setFieldsValue({
+        attributes: Object.entries(instance.attributes || {}).map(([key, value]) => ({ key, value })),
+      });
+    }
+  }, [instance]);
+
+  return (
+    <Modal
+      title={`${instance?.name} - Set Attributes`}
+      open={isOpen}
+      onOk={async () => {
+        const values = form.getFieldsValue();
+        const attributes = {};
+        for (const { key, value } of values.attributes) {
+          if (!key || !value) {
+            message.error('Key and value are required');
+            return;
+          }
+          attributes[key] = value;
+        }
+        updateInstance.mutate({ attributes });
+      }}
+      onCancel={() => setIsOpen(false)}
+      width={700}
+      okText="Save"
+    >
+      <Form form={form} layout="vertical" name="attributesForm">
+        <Form.List name="attributes">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map(({ key, name, ...restField }, index) => (
+                <Space key={key} style={{ display: 'flex' }} align="baseline">
+                  <Form.Item {...restField} name={[name, 'key']} rules={[{ required: true, message: 'Key required' }]}>
+                    <Input placeholder="Key" />
+                  </Form.Item>
+                  <Form.Item
+                    {...restField}
+                    name={[name, 'value']}
+                    rules={[{ required: true, message: 'Value required' }]}
+                  >
+                    <Input placeholder="Value" />
+                  </Form.Item>
+                  <Button onClick={() => remove(index)} danger icon={<DeleteOutlined />} />
+                </Space>
+              ))}
+              <Form.Item>
+                <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />}>
+                  Add Attribute
+                </Button>
+              </Form.Item>
+            </>
+          )}
+        </Form.List>
+      </Form>
+    </Modal>
+  );
+};
+
 export default function BrowserInstanceComponent({
   instance,
   instanceMessage,
@@ -122,8 +207,18 @@ export default function BrowserInstanceComponent({
   });
 
   const [isCFModalOpen, setCFModalOpen] = React.useState(false);
+  const [isSetAttributesModalOpen, setSetAttributesModalOpen] = React.useState(false);
 
   const actions = [];
+
+  actions.push(
+    <TagOutlined
+      key="attributes"
+      onClick={() => {
+        setSetAttributesModalOpen(true);
+      }}
+    />
+  );
 
   if (status === 'Running') {
     actions.push(
@@ -202,6 +297,7 @@ export default function BrowserInstanceComponent({
         }
       />
       <CallFunctionModal instance={instance} isOpen={isCFModalOpen} setIsOpen={setCFModalOpen} />
+      <SetAttributesModal instance={instance} isOpen={isSetAttributesModalOpen} setIsOpen={setSetAttributesModalOpen} />
     </Card>
   );
 }

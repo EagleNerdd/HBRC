@@ -7,11 +7,23 @@ import {
   CALL_INSTANCE_FUNCTION,
   START_INSTANCE,
   STOP_INSTANCE,
+  UPDATE_INSTANCE,
 } from '@shared/constants/ipcs';
 
 contextBridge.exposeInMainWorld('browserInstanceManagerAPI', {
   getInstances: () => ipcRenderer.invoke(GET_INSTANCES),
   addInstance: (name: string, url: string) => ipcRenderer.invoke(ADD_INSTANCE, name, url),
+  updateInstance: (
+    sessionId: string,
+    payload: {
+      attributes?: Record<string, string>;
+    },
+    options?: {
+      restart?: boolean;
+      notifyToTransporter?: boolean;
+      notifyToRenderer?: boolean;
+    }
+  ) => ipcRenderer.invoke(UPDATE_INSTANCE, sessionId, payload, options),
   deleteInstance: (sessionId: string) => ipcRenderer.invoke(DELETE_INSTANCE, sessionId),
   showInstanceWindow: (sessionId: string) => ipcRenderer.invoke(SHOW_INSTANCE_WINDOW, sessionId),
   callInstanceFunction: (sessionId: string, method: string, ...args: any[]) =>

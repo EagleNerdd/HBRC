@@ -208,9 +208,14 @@ class BrowserInstanceManager {
 
   async updateInstance(
     sessionId: string,
-    bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions'>>,
-    restart = true
+    bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions' | 'attributes'>>,
+    options?: {
+      restart?: boolean;
+      notifyToTransporter?: boolean;
+      notifyToRenderer?: boolean;
+    }
   ) {
+    const { restart = true, notifyToTransporter = false, notifyToRenderer = false } = options || {};
     const i = await this.getInstance(sessionId);
     if (!i) {
       throw new Error(`Instance not found: ${sessionId}`);
@@ -223,6 +228,12 @@ class BrowserInstanceManager {
       if (restart) {
         await controller.restart();
       }
+    }
+    if (notifyToTransporter) {
+      await this.pushMessageToTransporter('updateInstance', { instance: { ...bi, sessionId } });
+    }
+    if (notifyToRenderer) {
+      this.emitInstanceUpdatedEvent(sessionId, bi);
     }
   }
 
