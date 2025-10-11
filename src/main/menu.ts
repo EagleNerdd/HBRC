@@ -7,14 +7,28 @@ import { AboutUsWindow } from './windows/AboutUs';
 import { isDebugging } from './utils';
 
 export const initMenu = (app: App) => {
-  const macMenu = [
+  const macMenu: Array<Electron.MenuItemConstructorOptions | Electron.MenuItem> = [
     {
       label: app.name,
-      submenu: [],
+      submenu: [
+        { label: 'Quit', accelerator: 'Command+Q', click: () => app.quit() },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
     },
   ];
 
-  const menuTemplate = [
+  const menuTemplate: Array<Electron.MenuItemConstructorOptions | Electron.MenuItem> = [
     // { role: 'appMenu' }
     ...(PLATFORM.IS_MAC ? macMenu : []),
     // { role: 'fileMenu' }
