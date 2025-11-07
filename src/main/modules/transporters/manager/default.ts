@@ -1,4 +1,4 @@
-import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
+import { IncomingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
 import { BaseTransporterManager, TransporterMessaging } from './base';
 import { Queue } from '@shared/queue/base';
 import { FileQueue } from '@main/modules/queue';
@@ -21,7 +21,7 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
     await this.cttMessagesQueue.push({ message, transporter: options?.transporter });
   }
 
-  onMessageReceived(cb: (message: IncommingTransportMessage) => Promise<void>): void {
+  onMessageReceived(cb: (message: IncomingTransportMessage) => Promise<void>): void {
     this.ttcMessagesQueue.onMessage(cb);
   }
 
@@ -35,7 +35,7 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
     defaultTransporter.onConnected(async () => {
       this.clientEvents.onTransporterStatusChanged.emit('connected');
     });
-    defaultTransporter.onReceive(async (message: IncommingTransportMessage) => {
+    defaultTransporter.onReceive(async (message: IncomingTransportMessage) => {
       if (message.controlInstance || message.manageInstance) {
         await this.ttcMessagesQueue.push(message);
       } else {

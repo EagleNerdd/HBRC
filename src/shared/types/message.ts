@@ -1,6 +1,6 @@
 import { BrowserInstanceInstruction } from './browserInstance';
 
-export type IncommingTransportMessage = {
+export type IncomingTransportMessage = {
   controlInstance?: {
     sessionId: string;
     instructions: BrowserInstanceInstruction[];

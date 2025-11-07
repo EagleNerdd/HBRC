@@ -1,4 +1,4 @@
-import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
+import { IncomingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
 import {
   DummyTransporter,
   HttpTransporter,
@@ -36,7 +36,7 @@ export interface TransporterManager {
 
 export interface TransporterMessaging {
   sendMessage(message: OutgoingTransportMessage, options?: { transporter?: string }): Promise<void>;
-  onMessageReceived(cb: (message: IncommingTransportMessage) => Promise<void>): void;
+  onMessageReceived(cb: (message: IncomingTransportMessage) => Promise<void>): void;
 }
 
 export class BaseTransporterManager implements TransporterManager {
