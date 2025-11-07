@@ -130,7 +130,7 @@ class BrowserInstanceManager {
   }
 
   async addInstance(name: string, url: string) {
-    const { sessionId, page } = await this.openAddChannelWindownPage(url);
+    const { sessionId, page } = await this.openAddChannelWindowPage(url);
     const bi: BrowserInstance = {
       name,
       sessionId,
@@ -162,7 +162,7 @@ class BrowserInstanceManager {
     });
   }
 
-  private async openAddChannelWindownPage(url: string) {
+  private async openAddChannelWindowPage(url: string) {
     const { window, page, identifier } = await this.pie.newWindowPage(url, undefined, {
       show: true,
       hideOnClose: true,
