@@ -19,7 +19,7 @@ const DeleteBtn = ({ disabled, onConfirm }) => {
   return (
     <Popconfirm
       disabled={disabled}
-      title="Delete intance"
+      title="Delete instance"
       description="Are you sure to delete this instance?"
       onConfirm={onConfirm}
       okText="Delete"
@@ -182,27 +182,27 @@ export default function BrowserInstanceComponent({
       queryClient.invalidateQueries({ queryKey: [QueryKeys.GET_INSTANCES] });
     },
     onError(error, variables, context) {
-      message.error('Delete intance failed');
+      message.error('Delete instance failed');
     },
   });
 
   const startInstance = useMutation({
     mutationFn: instanceManager.startInstance,
     onSuccess: () => {
-      message.success('Start intance success');
+      message.success('Start instance success');
     },
     onError(error, variables, context) {
-      message.error('Start intance failed');
+      message.error('Start instance failed');
     },
   });
 
   const stopInstance = useMutation({
     mutationFn: instanceManager.stopInstance,
     onSuccess: () => {
-      message.success('Stop intance success');
+      message.success('Stop instance success');
     },
     onError(error, variables, context) {
-      message.error('Stop intance failed');
+      message.error('Stop instance failed');
     },
   });
 
