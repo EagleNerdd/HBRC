@@ -53,7 +53,7 @@ export default function ConnectionStringComponent() {
             danger
             type="primary"
             onClick={() => {
-              alert('comming soonss');
+              alert('coming soon');
             }}
           >
             Disconnect
