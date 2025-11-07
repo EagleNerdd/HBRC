@@ -12,7 +12,7 @@ import { ENVIRONMENT } from '@shared/constants';
 
 class BrowserInstanceManager {
   private db: FSDB;
-  private channelControlllerMap = new Map<string, BrowserInstanceController>();
+  private channelControllerMap = new Map<string, BrowserInstanceController>();
   private instanceStatusMap = new Map<string, BrowserInstanceStatus>();
   private logger: Logger;
   constructor(
@@ -84,7 +84,7 @@ class BrowserInstanceManager {
   }
 
   async getRunningInstanceSessionIdSet() {
-    return new Set(this.channelControlllerMap.keys());
+    return new Set(this.channelControllerMap.keys());
   }
 
   async getInstance(sessionId: string) {
@@ -124,7 +124,7 @@ class BrowserInstanceManager {
     if (controller) {
       await controller.destroy();
       await this.pie.closeWindow(sessionId);
-      this.channelControlllerMap.delete(sessionId);
+      this.channelControllerMap.delete(sessionId);
     }
     this.emitInstanceUpdatedEvent(sessionId, { status: 'Stopped' });
   }
@@ -181,7 +181,7 @@ class BrowserInstanceManager {
   }
 
   private async loadInstanceWindowPage(bi: BrowserInstance) {
-    if (this.channelControlllerMap.has(bi.sessionId)) {
+    if (this.channelControllerMap.has(bi.sessionId)) {
       return;
     }
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Starting' });
@@ -196,7 +196,7 @@ class BrowserInstanceManager {
 
   private async createInstanceController(bi: BrowserInstance, page: Page) {
     const controller = new PuppeteerInstanceController(bi, this.transporterMessaging, this.clientEvents, page);
-    this.channelControlllerMap.set(bi.sessionId, controller);
+    this.channelControllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });
     return controller;
@@ -238,7 +238,7 @@ class BrowserInstanceManager {
   }
 
   getController(sessionId: string) {
-    return this.channelControlllerMap.get(sessionId);
+    return this.channelControllerMap.get(sessionId);
   }
 
   async callInstanceFunction(sessionId: string, method: string, ...args: any[]) {
