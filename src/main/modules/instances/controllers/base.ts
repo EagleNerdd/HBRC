@@ -5,24 +5,38 @@ import { ClientEvents } from '@main/modules/events';
 
 export interface BrowserInstanceController {
   browserEval(code: string): Promise<any>;
+
   init(): Promise<void>;
+
   postMessage(data: any): Promise<void>;
+
   postInstanceMessage(message: BrowserInstanceMessage): Promise<void>;
+
   executeInstructions(instructions: BrowserInstanceInstruction[]): Promise<any>;
+
   executeInstruction(instruction: BrowserInstanceInstruction): Promise<any>;
+
   setInstance(instance: BrowserInstance): Promise<void>;
+
   restart(): Promise<void>;
+
   destroy(): Promise<void>;
+
+  showWindow?(): Promise<void>;
+
+  hideWindow?(): Promise<void>;
 }
 
 export abstract class BaseBrowserInstanceController implements BrowserInstanceController {
   constructor(
     protected instance: BrowserInstance,
     protected readonly transporterMessaging: TransporterMessaging,
-    private readonly events: ClientEvents
-  ) {}
+    private readonly events: ClientEvents,
+  ) {
+  }
 
-  async restart() {}
+  async restart() {
+  }
 
   async setInstance(instance: BrowserInstance) {
     this.instance = instance;
@@ -31,6 +45,7 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
   executeInstructions(instructions: BrowserInstanceInstruction[]): Promise<any> {
     throw new Error('Method not implemented.');
   }
+
   executeInstruction(instruction: BrowserInstanceInstruction): Promise<any> {
     throw new Error('Method not implemented.');
   }
@@ -53,6 +68,10 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
 
   async postInstanceMessage(message: BrowserInstanceMessage) {
     this.events.onInstanceMessage.emit({ sessionId: this.instance.sessionId, message });
+  }
+
+  async postInstanceUpdated(updated: Partial<BrowserInstance>) {
+    this.events.onInstanceUpdated.emit({ sessionId: this.instance.sessionId, updated });
   }
 
   init(): Promise<void> {

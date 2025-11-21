@@ -1,14 +1,6 @@
 import React, { useEffect } from 'react';
-import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button, Divider, Space } from 'antd';
-import {
-  SendOutlined,
-  WindowsOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  TagOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+import { Button, Card, Divider, Form, Input, message, Modal, Popconfirm, Space, Tag } from 'antd';
+import { DeleteOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, SendOutlined, TagOutlined, WindowsOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
@@ -25,7 +17,8 @@ const DeleteBtn = ({ disabled, onConfirm }) => {
       okText="Delete"
       cancelText="Cancel"
     >
-      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {}} />
+      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {
+      }} />
     </Popconfirm>
   );
 };
@@ -90,7 +83,7 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
           restart: false,
           notifyToTransporter: true,
           notifyToRenderer: true,
-        }
+        },
       ),
     onSuccess: () => {
       message.success('Update attributes success');
@@ -162,9 +155,9 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
 };
 
 export default function BrowserInstanceComponent({
-  instance,
-  instanceMessage,
-}: {
+                                                   instance,
+                                                   instanceMessage,
+                                                 }: {
   instance: BrowserInstance;
   instanceMessage?: BrowserInstanceMessage;
 }) {
@@ -217,7 +210,7 @@ export default function BrowserInstanceComponent({
       onClick={() => {
         setSetAttributesModalOpen(true);
       }}
-    />
+    />,
   );
 
   if (status === 'Running') {
@@ -228,16 +221,27 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           stopInstance.mutate(sessionId);
         }}
-      />
+      />,
     );
-    actions.push(
-      <WindowsOutlined
-        key="showWindow"
-        onClick={() => {
-          instanceManager.showInstanceWindow(sessionId);
-        }}
-      />
-    );
+    if (instance.type != 'puppeteer' || instance.headless) {
+      actions.push(
+        <WindowsOutlined
+          key="showWindow"
+          onClick={() => {
+            instanceManager.showInstanceWindow(sessionId);
+          }}
+        />,
+      );
+    } else {
+      actions.push(
+        <EyeInvisibleOutlined
+          key="hideWindow"
+          onClick={() => {
+            instanceManager.hideInstanceWindow(sessionId)
+          }}
+        />
+      );
+    }
     if (isDebug) {
       actions.push(
         <SendOutlined
@@ -245,7 +249,7 @@ export default function BrowserInstanceComponent({
           onClick={() => {
             setCFModalOpen(true);
           }}
-        />
+        />,
       );
     }
   } else if (status === 'Stopped') {
@@ -256,11 +260,11 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           startInstance.mutate(sessionId);
         }}
-      />
+      />,
     );
   }
   actions.push(
-    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />
+    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />,
   );
 
   let statusColor = 'default';
@@ -290,6 +294,8 @@ export default function BrowserInstanceComponent({
           <div>
             <div>
               <Tag color={statusColor}>{status}</Tag>
+              {instance.type != 'electron' && <Tag color="purple">{instance.type}</Tag>}
+              {instance.headless && <Tag color="red">headless</Tag>}
               <Tag color="blue">{instance.url}</Tag>
             </div>
             {renderInstanceMessage()}

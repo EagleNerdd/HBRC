@@ -17,9 +17,10 @@ export type ApplicationAPI = {
 
 export type BrowserInstanceManagerAPI = {
   getInstances: () => Promise<any>;
-  addInstance: (name: string, url: string) => Promise<any>;
+  addInstance: (name: string, url: string, type: string) => Promise<any>;
   deleteInstance: (sessionId: string) => Promise<any>;
   showInstanceWindow: (sessionId: string) => Promise<any>;
+  hideInstanceWindow: (sessionId: string) => Promise<any>;
   callInstanceFunction: (sessionId: string, method: string, ...args: any[]) => Promise<any>;
   startInstance: (sessionId: string) => Promise<any>;
   stopInstance: (sessionId: string) => Promise<any>;
