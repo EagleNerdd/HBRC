@@ -60,6 +60,7 @@ export function AddInstanceComponent() {
           <Select>
             <Select.Option value="electron">Electron</Select.Option>
             <Select.Option value="puppeteer">Puppeteer</Select.Option>
+            <Select.Option value="single-puppeteer">Single Puppeteer</Select.Option>
           </Select>
         </Form.Item>
 

@@ -6,7 +6,7 @@ export type BrowserInstanceInstruction = {
 
 export type BrowserInstanceStatus = 'Running' | 'Stopped' | 'Starting' | 'Stopping';
 
-export type BrowserInstanceType = 'electron' | 'puppeteer';
+export type BrowserInstanceType = 'electron' | 'puppeteer' | 'single-puppeteer';
 
 export type BrowserInstanceMessage = {
   level: 'info' | 'warn' | 'error' | 'success';
