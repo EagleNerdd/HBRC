@@ -9,6 +9,8 @@ import { getDataPath, getLatestUserAgent } from '@main/utils';
 import { randomString } from '@shared/utils/random';
 
 export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanceController {
+  public static readonly PageLoadTimeout = 300_000;
+
   private logger: Logger;
   protected browser?: Browser | BrowserContext;
 
@@ -151,7 +153,7 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
       (window as any).hbrcWindowId = id;
     }, identifier);
 
-    await page.goto(url, { waitUntil: 'networkidle2' });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
 
     return { browser, page };
   }

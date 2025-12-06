@@ -110,7 +110,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     this.page.on('request', this.onRequest.bind(this));
 
     await this.restoreSession();
-    await this.page.goto(this.instance.url, { waitUntil: 'networkidle2' });
+    await this.page.goto(this.instance.url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
 
     await super.init();
   }
@@ -133,7 +133,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async restoreSession() {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?hbrc=restore-session');
+    await this.page.goto(this.instance.url + '?hbrc=restore-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
     let raw: Buffer | null = null;
     try {
       raw = await readFile(this.dataFilePath);
@@ -151,7 +151,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async saveSession() {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?hbrc=save-session');
+    await this.page.goto(this.instance.url + '?hbrc=save-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
     const cookies = await this.page.cookies();
     const localStorage = JSON.parse(await this.page.evaluate(() => JSON.stringify(window.localStorage))) as Record<string, string>;
     await mkdir(dirname(this.dataFilePath), { recursive: true });
