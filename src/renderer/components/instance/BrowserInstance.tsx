@@ -223,7 +223,7 @@ export default function BrowserInstanceComponent({
         }}
       />,
     );
-    if (instance.type != 'puppeteer' || instance.headless) {
+    if ((instance.type != 'puppeteer' && instance.type != 'single-puppeteer') || instance.headless) {
       actions.push(
         <WindowsOutlined
           key="showWindow"
