@@ -88,8 +88,8 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async switchToHeadless(headless: boolean) {
     await this.postInstanceUpdated({ status: 'Starting', headless });
-    const { browser, page } = await SinglePuppeteerInstanceController.createBrowserContext(headless, this.options.identifier, this.options.userAgent);
-    this.browser = browser;
+    const { context, page } = await SinglePuppeteerInstanceController.createBrowserContext(headless, this.options.identifier, this.options.userAgent);
+    this.browser = context;
     this.page = page;
     await this.init();
     await this.postInstanceUpdated({ status: 'Running' });
