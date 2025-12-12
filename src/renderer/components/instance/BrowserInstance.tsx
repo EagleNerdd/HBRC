@@ -4,7 +4,7 @@ import { DeleteOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOu
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
-import { BrowserInstance, BrowserInstanceMessage } from '@shared/types';
+import { BrowserInstance, BrowserInstanceMessage, BrowserInstanceNames } from '@shared/types';
 import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 
 const DeleteBtn = ({ disabled, onConfirm }) => {
@@ -294,7 +294,7 @@ export default function BrowserInstanceComponent({
           <div>
             <div>
               <Tag color={statusColor}>{status}</Tag>
-              {instance.type != 'electron' && <Tag color="purple">{instance.type}</Tag>}
+              {instance.type != 'electron' && <Tag color="purple">{BrowserInstanceNames[instance.type] ?? instance.type}</Tag>}
               {instance.headless && <Tag color="red">headless</Tag>}
               <Tag color="blue">{instance.url}</Tag>
             </div>

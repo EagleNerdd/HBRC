@@ -8,6 +8,12 @@ export type BrowserInstanceStatus = 'Running' | 'Stopped' | 'Starting' | 'Stoppi
 
 export type BrowserInstanceType = 'electron' | 'puppeteer' | 'single-puppeteer';
 
+export const BrowserInstanceNames: Record<BrowserInstanceType, string> = {
+  'electron': 'Integrated',
+  'puppeteer': 'Isolate',
+  'single-puppeteer': 'Lightweight',
+};
+
 export type BrowserInstanceMessage = {
   level: 'info' | 'warn' | 'error' | 'success';
   message: string;

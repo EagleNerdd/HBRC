@@ -5,7 +5,7 @@ import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import { useAppContext } from '@renderer/context/app';
-import { BrowserInstanceType } from '@shared/types';
+import { BrowserInstanceNames, BrowserInstanceType } from '@shared/types';
 
 export function AddInstanceComponent() {
   const { messageApi } = useAppContext();
@@ -58,9 +58,7 @@ export function AddInstanceComponent() {
           rules={[{ required: true, message: 'Please select instance type!' }]}
         >
           <Select>
-            <Select.Option value="electron">Electron</Select.Option>
-            <Select.Option value="puppeteer">Puppeteer</Select.Option>
-            <Select.Option value="single-puppeteer">Single Puppeteer</Select.Option>
+            {Object.entries(BrowserInstanceNames).map(([name, value]) => <Select.Option key={name}>{value}</Select.Option>)}
           </Select>
         </Form.Item>
 
