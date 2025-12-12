@@ -118,7 +118,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
   protected async onRequest(request: HTTPRequest) {
     if (request.isNavigationRequest()) {
       const url = new URL(request.url());
-      const action = url.searchParams.get('hbrc');
+      const action = url.searchParams.get('__hbrc');
       if (action) {
         return await request.respond({ status: 200, contentType: 'text/plain', body: 'HBRC Loading ....' });
       }
@@ -133,7 +133,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async restoreSession() {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?hbrc=restore-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+    await this.page.goto(this.instance.url + '?__hbrc=restore-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
     let raw: Buffer | null = null;
     try {
       raw = await readFile(this.dataFilePath);
@@ -151,7 +151,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async saveSession() {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?hbrc=save-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+    await this.page.goto(this.instance.url + '?__hbrc=save-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
     const cookies = await this.page.cookies();
     const localStorage = JSON.parse(await this.page.evaluate(() => JSON.stringify(window.localStorage))) as Record<string, string>;
     await mkdir(dirname(this.dataFilePath), { recursive: true });
