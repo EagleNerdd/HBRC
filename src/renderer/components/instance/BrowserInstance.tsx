@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Button, Card, Divider, Form, Input, message, Modal, Popconfirm, Space, Tag } from 'antd';
-import { DeleteOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, SendOutlined, TagOutlined, WindowsOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, SendOutlined, WindowsOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
@@ -71,14 +71,14 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   );
 };
 
-const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
+const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
   const [form] = Form.useForm();
   const instanceManager = useBrowserInstanceManager();
   const updateInstance = useMutation({
-    mutationFn: ({ attributes }: { attributes: Record<string, string> }) =>
+    mutationFn: ({ name, attributes }: { name: string, attributes: Record<string, string> }) =>
       instanceManager.updateInstance(
         instance.sessionId,
-        { attributes },
+        { name, attributes },
         {
           restart: false,
           notifyToTransporter: true,
@@ -97,6 +97,7 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
   useEffect(() => {
     if (instance) {
       form.setFieldsValue({
+        name: instance.name,
         attributes: Object.entries(instance.attributes || {}).map(([key, value]) => ({ key, value })),
       });
     }
@@ -104,7 +105,7 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
 
   return (
     <Modal
-      title={`${instance?.name} - Set Attributes`}
+      title={`${instance?.name} - Edit Instance`}
       open={isOpen}
       onOk={async () => {
         const values = form.getFieldsValue();
@@ -116,13 +117,24 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
           }
           attributes[key] = value;
         }
-        updateInstance.mutate({ attributes });
+        updateInstance.mutate({ name: values.name, attributes });
       }}
       onCancel={() => setIsOpen(false)}
       width={700}
       okText="Save"
     >
-      <Form form={form} layout="vertical" name="attributesForm">
+      <Form form={form} name="editInstance">
+        <h4>Instance</h4>
+        <Form.Item
+          label="Name"
+          name="name"
+          rules={[{ required: true, message: 'Please input instance name!' }]}
+        >
+          <Input placeholder="Example 1" />
+        </Form.Item>
+      </Form>
+      <Form form={form} layout="vertical" name="editAttributes">
+        <h4>Attributes</h4>
         <Form.List name="attributes">
           {(fields, { add, remove }) => (
             <>
@@ -200,15 +212,15 @@ export default function BrowserInstanceComponent({
   });
 
   const [isCFModalOpen, setCFModalOpen] = React.useState(false);
-  const [isSetAttributesModalOpen, setSetAttributesModalOpen] = React.useState(false);
+  const [isSetAttributesModalOpen, setEditInstanceModalOpen] = React.useState(false);
 
   const actions = [];
 
   actions.push(
-    <TagOutlined
-      key="attributes"
+    <EditOutlined
+      key="edit"
       onClick={() => {
-        setSetAttributesModalOpen(true);
+        setEditInstanceModalOpen(true);
       }}
     />,
   );
@@ -237,9 +249,9 @@ export default function BrowserInstanceComponent({
         <EyeInvisibleOutlined
           key="hideWindow"
           onClick={() => {
-            instanceManager.hideInstanceWindow(sessionId)
+            instanceManager.hideInstanceWindow(sessionId);
           }}
-        />
+        />,
       );
     }
     if (isDebug) {
@@ -303,7 +315,7 @@ export default function BrowserInstanceComponent({
         }
       />
       <CallFunctionModal instance={instance} isOpen={isCFModalOpen} setIsOpen={setCFModalOpen} />
-      <SetAttributesModal instance={instance} isOpen={isSetAttributesModalOpen} setIsOpen={setSetAttributesModalOpen} />
+      <EditInstanceModal instance={instance} isOpen={isSetAttributesModalOpen} setIsOpen={setEditInstanceModalOpen} />
     </Card>
   );
 }
