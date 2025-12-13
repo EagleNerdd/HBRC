@@ -213,7 +213,8 @@ class BrowserInstanceManager {
     if (!this.browser) {
       throw new Error('Browser not initialized');
     }
-    const controller = await createInstanceController(this.browser, bi, this.transporterMessaging, this.clientEvents, options);
+    const onClose = () => this.stopInstance(bi.sessionId);
+    const controller = await createInstanceController(this.browser, bi, this.transporterMessaging, this.clientEvents, { ...options, onClose });
     this.channelControllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });

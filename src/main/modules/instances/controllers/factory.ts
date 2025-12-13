@@ -19,6 +19,7 @@ export const createInstanceController = async (
     show?: boolean;
     hideOnClose?: boolean;
     identifier?: string;
+    onClose?: () => void;
   },
 ): Promise<BrowserInstanceController> => {
   logger.info(`Creating instance controller for type: ${bi.type} (show=${options.show}, identifier=${options.identifier})`);

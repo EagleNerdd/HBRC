@@ -165,14 +165,20 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     options?: {
       show?: boolean;
       identifier?: string;
+      onClose?: () => void,
     },
   ): Promise<PuppeteerInstanceController> {
-    const { show, identifier = instance.sessionId || randomString(30) } = options || {};
+    const { show, identifier = instance.sessionId || randomString(30), onClose } = options || {};
     const headless = !show;
     const userAgent = instance.userAgent || getLatestUserAgent('windows', 'chrome');
 
     const opts = { identifier, userAgent };
     const { browser, page } = await this.createBrowser(headless, opts.identifier, opts.userAgent, instance.url);
+
+    if (onClose) {
+      browser.on('disconnected', onClose);
+      page.on('close', onClose);
+    }
 
     instance.sessionId = identifier;
     const controller = new PuppeteerInstanceController(instance, transporterMessaging, clientEvents, page, browser, opts);

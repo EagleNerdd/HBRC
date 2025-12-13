@@ -97,9 +97,4 @@ export class ElectronInstanceController extends BasePuppeteerInstanceController 
   getWindow() {
     return this.window;
   }
-
-  async destroy(): Promise<void> {
-    await this.closeWindow();
-    await super.destroy();
-  }
 }

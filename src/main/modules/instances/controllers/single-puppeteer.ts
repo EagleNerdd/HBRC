@@ -12,6 +12,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
   static singletonBrowsers: Map<string, Browser> = new Map();
   protected _browser?: Browser;
   protected dataFilePath?: string;
+  private _onClose: () => void;
 
   constructor(instance: BrowserInstance,
               transporterMessaging: TransporterMessaging,
@@ -71,18 +72,25 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     options?: {
       show?: boolean;
       identifier?: string;
+      onClose?: () => void,
     },
   ): Promise<SinglePuppeteerInstanceController> {
-    const { show, identifier = instance.sessionId || randomString(30) } = options || {};
+    const { show, identifier = instance.sessionId || randomString(30), onClose } = options || {};
     const headless = !show;
     const userAgent = instance.userAgent || getLatestUserAgent('windows', 'chrome');
 
     const opts = { identifier, userAgent };
     const { browser, context, page } = await this.createBrowserContext(headless, opts.identifier, opts.userAgent);
 
+    if (onClose) {
+      browser.on('disconnected', onClose);
+      page.on('close', onClose);
+    }
+
     instance.sessionId = identifier;
     const controller = new SinglePuppeteerInstanceController(instance, transporterMessaging, clientEvents, page, browser, context, opts);
     await controller.postInstanceUpdated({ headless });
+    controller._onClose = onClose;
     return controller;
   }
 
@@ -91,6 +99,10 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     const { context, page } = await SinglePuppeteerInstanceController.createBrowserContext(headless, this.options.identifier, this.options.userAgent);
     this.browser = context;
     this.page = page;
+    if (this._onClose) {
+      context.on('disconnected', this._onClose);
+      page.on('close', this._onClose);
+    }
     await this.init();
     await this.postInstanceUpdated({ status: 'Running' });
   }
@@ -127,7 +139,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
   }
 
   async closeWindow(): Promise<void> {
-    await this.saveSession();
+    await this.saveSession().catch(console.error);
     await super.closeWindow();
   }
 
