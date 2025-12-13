@@ -9,10 +9,13 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname } from 'path';
 
 export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceController {
+  public static readonly SaveSessionInterval = 300_000;
+
   static singletonBrowsers: Map<string, Browser> = new Map();
   protected _browser?: Browser;
   protected dataFilePath?: string;
   private _onClose: () => void;
+  private _saveSessionInterval: NodeJS.Timeout;
 
   constructor(instance: BrowserInstance,
               transporterMessaging: TransporterMessaging,
@@ -121,8 +124,12 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     await this.page.setRequestInterception(true);
     this.page.on('request', this.onRequest.bind(this));
 
-    await this.restoreSession();
+    await this.restoreSession(this.page);
     await this.page.goto(this.instance.url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+
+    if (!this._saveSessionInterval) {
+      this._saveSessionInterval = setInterval(() => this.saveSessionInBackground(), SinglePuppeteerInstanceController.SaveSessionInterval);
+    }
 
     await super.init();
   }
@@ -138,14 +145,20 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     await request.continue();
   }
 
+  async saveSessionInBackground() {
+    const page = await this.browser.newPage();
+    await this.saveSession(page).catch(console.error);
+    await page.close();
+  }
+
   async closeWindow(): Promise<void> {
-    await this.saveSession().catch(console.error);
+    await this.saveSession(this.page).catch(console.error);
     await super.closeWindow();
   }
 
-  async restoreSession() {
+  async restoreSession(page: Page) {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?__hbrc=restore-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+    await page.goto(this.instance.url + '?__hbrc=restore-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
     let raw: Buffer | null = null;
     try {
       raw = await readFile(this.dataFilePath);
@@ -157,15 +170,15 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     }
     if (!raw) return;
     const { cookies, localStorage } = JSON.parse(raw.toString()) as { cookies: Cookie[], localStorage: Record<string, string> };
-    await this.page.setCookie(...cookies);
-    await this.page.evaluate((items) => Object.keys(items).forEach(key => window.localStorage.setItem(key, items[key])), localStorage);
+    await page.setCookie(...cookies);
+    await page.evaluate((items) => Object.keys(items).forEach(key => window.localStorage.setItem(key, items[key])), localStorage);
   }
 
-  async saveSession() {
+  async saveSession(page: Page) {
     if (!this.dataFilePath) return;
-    await this.page.goto(this.instance.url + '?__hbrc=save-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
-    const cookies = await this.page.cookies();
-    const localStorage = JSON.parse(await this.page.evaluate(() => JSON.stringify(window.localStorage))) as Record<string, string>;
+    await page.goto(this.instance.url + '?__hbrc=save-session', { timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+    const cookies = await page.cookies();
+    const localStorage = JSON.parse(await page.evaluate(() => JSON.stringify(window.localStorage))) as Record<string, string>;
     await mkdir(dirname(this.dataFilePath), { recursive: true });
     await writeFile(this.dataFilePath, JSON.stringify({ cookies, localStorage }));
   }
