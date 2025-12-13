@@ -7,7 +7,7 @@ import QueryKeys from '@renderer/constants/queryKeys';
 import { useAppContext } from '@renderer/context/app';
 import { BrowserInstanceNames, BrowserInstanceType } from '@shared/types';
 
-export function AddInstanceComponent() {
+export function AddInstanceComponent({ onClose }: { onClose: () => void }) {
   const { messageApi } = useAppContext();
 
   const instanceManager = useBrowserInstanceManager();
@@ -30,6 +30,7 @@ export function AddInstanceComponent() {
   const handleAddInstance = async (data: FieldType) => {
     try {
       await addInstance.mutateAsync(data);
+      onClose && onClose();
     } catch (e) {
       messageApi.error(`Add instance error: ${e.message}`);
     }

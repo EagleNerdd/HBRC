@@ -23,7 +23,7 @@ export default function BrowserInstanceManagerComponent() {
         }}
         footer={null}
       >
-        <AddInstanceComponent />
+        <AddInstanceComponent onClose={() => setIsOpenAddInstanceModal(false)} />
       </Modal>
     </>
   );
