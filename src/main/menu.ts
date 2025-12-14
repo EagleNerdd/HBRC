@@ -7,6 +7,9 @@ import { AboutUsWindow } from './windows/AboutUs';
 import { isDebugging } from './utils';
 
 export const initMenu = (app: App) => {
+  if (!app.isReady()) {
+    return app.on('ready', () => initMenu(app));
+  }
   const macMenu: Array<Electron.MenuItemConstructorOptions | Electron.MenuItem> = [
     {
       label: app.name,
