@@ -83,7 +83,11 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
     if (this.browser) {
       await this.postInstanceUpdated({ status: 'Stopping' });
       this.logger.debug('Closing browser', { sessionId: this.instance.sessionId });
-      await this.browser.close();
+      try {
+        await this.browser.close();
+      } catch (e) {
+        this.logger.error('Error closing browser', { error: e, sessionId: this.instance.sessionId });
+      }
     }
   }
 
