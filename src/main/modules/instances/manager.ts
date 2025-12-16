@@ -136,8 +136,12 @@ class BrowserInstanceManager {
     this.emitInstanceUpdatedEvent(sessionId, { status: 'Stopping' });
     const controller = this.getController(sessionId);
     if (controller) {
-      await controller.destroy();
-      this.channelControllerMap.delete(sessionId);
+      const isCleared = await controller.destroy();
+      this.logger.debug('Instance controller destroyed', { sessionId, isCleared });
+      if (isCleared) {
+        this.channelControllerMap.delete(sessionId);
+        this.logger.debug('Instance controller cleared', { sessionId });
+      }
     }
     this.emitInstanceUpdatedEvent(sessionId, { status: 'Stopped' });
   }

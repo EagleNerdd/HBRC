@@ -91,8 +91,9 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
     }
   }
 
-  async destroy(): Promise<void> {
+  async destroy(): Promise<boolean> {
     await this.closeWindow();
+    return false; // Keep controller after destroy
   }
 }
 

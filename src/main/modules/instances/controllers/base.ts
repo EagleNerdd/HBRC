@@ -20,7 +20,7 @@ export interface BrowserInstanceController {
 
   restart(): Promise<void>;
 
-  destroy(): Promise<void>;
+  destroy(): Promise<boolean>;
 
   showWindow?(): Promise<void>;
 
@@ -78,7 +78,7 @@ export abstract class BaseBrowserInstanceController implements BrowserInstanceCo
     throw new Error('Method not implemented');
   }
 
-  async destroy() {
+  async destroy(): Promise<boolean> {
     throw new Error('Method not implemented');
   }
 }
