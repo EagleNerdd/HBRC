@@ -15,7 +15,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
   static singletonBrowsers: Map<string, Browser> = new Map();
   protected _browser?: Browser;
   protected dataFilePath?: string;
-  private _onClose: () => void;
+  private readonly _onClose: () => void;
   private _saveSessionInterval: NodeJS.Timeout;
 
   constructor(instance: BrowserInstance,
@@ -27,10 +27,12 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
               private options?: {
                 identifier?: string,
                 userAgent?: string,
+                onClose?: () => void,
               },
   ) {
     super(instance, transporterMessaging, events, page, context);
     this._browser = browser;
+    this._onClose = options?.onClose;
     if (options?.identifier) {
       this.dataFilePath = getDataPath('single_puppeteer_data', `${options.identifier}.json`);
     }
@@ -92,7 +94,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     const headless = !show;
     const userAgent = instance.userAgent || getLatestUserAgent('windows', 'chrome');
 
-    const opts = { identifier, userAgent };
+    const opts = { identifier, userAgent, onClose };
     const { browser, context, page } = await this.createBrowserContext(headless, opts.identifier, opts.userAgent);
 
     if (onClose) {
@@ -103,7 +105,6 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     instance.sessionId = identifier;
     const controller = new SinglePuppeteerInstanceController(instance, transporterMessaging, clientEvents, page, browser, context, opts);
     await controller.postInstanceUpdated({ headless });
-    controller._onClose = onClose;
     return controller;
   }
 

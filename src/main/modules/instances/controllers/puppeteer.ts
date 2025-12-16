@@ -97,6 +97,8 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 }
 
 export class PuppeteerInstanceController extends BasePuppeteerInstanceController {
+  private readonly _onClose: () => void;
+
   constructor(instance: BrowserInstance,
               transporterMessaging: TransporterMessaging,
               events: ClientEvents,
@@ -105,9 +107,11 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
               private options?: {
                 identifier?: string,
                 userAgent?: string,
+                onClose?: () => void,
               },
   ) {
     super(instance, transporterMessaging, events, page, browser);
+    this._onClose = options?.onClose;
   }
 
   static async launchBrowser(
@@ -176,7 +180,7 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     const headless = !show;
     const userAgent = instance.userAgent || getLatestUserAgent('windows', 'chrome');
 
-    const opts = { identifier, userAgent };
+    const opts = { identifier, userAgent, onClose };
     const { browser, page } = await this.createBrowser(headless, opts.identifier, opts.userAgent, instance.url);
 
     if (onClose) {
@@ -195,6 +199,10 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     const { browser, page } = await PuppeteerInstanceController.createBrowser(headless, this.options.identifier, this.options.userAgent, this.instance.url);
     this.browser = browser;
     this.page = page;
+    if (this._onClose) {
+      browser.on('disconnected', this._onClose);
+      page.on('close', this._onClose);
+    }
     await this.init();
     await this.postInstanceUpdated({ status: 'Running' });
   }
