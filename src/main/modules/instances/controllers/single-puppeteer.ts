@@ -7,7 +7,6 @@ import { randomString } from '@shared/utils/random';
 import { BasePuppeteerInstanceController, PuppeteerInstanceController } from './puppeteer';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname } from 'path';
-import { PLATFORM } from '@shared/constants/platform';
 
 export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceController {
   public static readonly SaveSessionInterval = 300_000;
@@ -57,17 +56,15 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     const browser = await this.getBrowser(headless);
     const context = await browser.createBrowserContext();
 
-    if (!headless) {
-      if (PLATFORM.IS_MAC) {
-        const pages = await browser.defaultBrowserContext().pages();
-        for (const page of pages) {
-          await page.close();
-        }
-      }
-    }
-
     const pages = await context.pages();
     const page = pages[0] || (await context.newPage());
+
+    if (!headless) {
+      const pages = await browser.defaultBrowserContext().pages();
+      for (const page of pages) {
+        await page.close();
+      }
+    }
 
     if (userAgent) {
       await page.setUserAgent(userAgent);
