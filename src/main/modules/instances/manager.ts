@@ -194,15 +194,19 @@ class BrowserInstanceManager {
   }
 
   private async loadInstanceWindowPage(bi: BrowserInstance) {
-    if (this.channelControllerMap.has(bi.sessionId)) {
-      return;
-    }
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Starting' });
-    await this.createInstanceController(bi, {
-      show: false,
-      hideOnClose: true,
-      identifier: bi.sessionId,
-    });
+    if (!this.channelControllerMap.has(bi.sessionId)) {
+      this.logger.debug('Creating new instance controller', { sessionId: bi.sessionId });
+      await this.createInstanceController(bi, {
+        show: false,
+        hideOnClose: true,
+        identifier: bi.sessionId,
+      });
+    } else {
+      this.logger.debug('Instance controller already exists', { sessionId: bi.sessionId });
+      const instance = this.channelControllerMap.get(bi.sessionId);
+      await instance.showWindow();
+    }
     this.logger.debug('loadInstanceWindowPage', bi);
   }
 

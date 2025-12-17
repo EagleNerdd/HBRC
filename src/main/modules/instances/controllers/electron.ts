@@ -85,6 +85,7 @@ export class ElectronInstanceController extends BasePuppeteerInstanceController 
         this.window.webContents.openDevTools({ mode: 'right' });
       }
       this.window.show();
+      await this.postInstanceUpdated({ status: 'Running' });
     }
   }
 
