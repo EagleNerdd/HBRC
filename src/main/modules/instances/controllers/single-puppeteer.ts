@@ -43,6 +43,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     if (!browser) {
       const { browser } = await PuppeteerInstanceController.launchBrowser(headless);
       this.singletonBrowsers.set(singletonKey, browser);
+      browser.on('disconnected', () => this.singletonBrowsers.delete(singletonKey));
       return browser;
     }
     return browser;
