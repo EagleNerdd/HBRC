@@ -3,7 +3,9 @@ import { ClientKvStorage, ElectronKvStorage } from '@main/modules/storages/kvSto
 import { ClientEvents } from '@main/modules/events';
 import BrowserInstanceManager from '@main/modules/instances/manager';
 import { app, BrowserWindow, App as ElectronApp } from 'electron';
-import { PuppeteerElectron } from '../pie';
+import getPort from 'get-port';
+import retry from 'async-retry';
+import puppeteer, { Browser } from 'puppeteer-core';
 
 import { makeAppSetup } from '../factories';
 import { MainWindow } from '../windows';
@@ -31,7 +33,7 @@ class Application implements HBRCApplication {
   private instanceManager: BrowserInstanceManager;
   private transporterManager: TransporterManager;
   private transporterMessaging: TransporterMessaging;
-  private puppeteerElectron: PuppeteerElectron;
+  private browser?: Browser;
   private _isReady = false;
   private agentName: string;
   private logger: Logger;
@@ -41,11 +43,10 @@ class Application implements HBRCApplication {
     this.kvStorage = new ElectronKvStorage();
     this.clientKvStorage = new ClientKvStorage(this.kvStorage);
     this.events = new ClientEvents();
-    this.puppeteerElectron = new PuppeteerElectron();
     const transporterManager = new DefaultTransporterManager(this.events);
     this.transporterManager = transporterManager;
     this.transporterMessaging = transporterManager;
-    this.instanceManager = new BrowserInstanceManager(this.puppeteerElectron, this.transporterMessaging, this.events);
+    this.instanceManager = new BrowserInstanceManager(this.transporterMessaging, this.events);
     this.agentName = getComputerName();
     this.events.onTransporterStatusChanged.listen(async (status) => {
       if (status == 'connected') {
@@ -122,14 +123,47 @@ class Application implements HBRCApplication {
 
   async init() {
     await this.initDebugMode();
-    await this.puppeteerElectron.beforeAppReady();
+    await this.setupPuppeteerBeforeAppReady();
     await this.initElectronApp();
-    await this.puppeteerElectron.afterAppReady();
-    await this.instanceManager.init();
+    await this.connectPuppeteerAfterAppReady();
+    await this.instanceManager.init(this.browser!);
     await this.initOptions();
     await updateUserAgents();
     this._isReady = true;
     this.events.onClientReady.emit();
+  }
+
+  private async setupPuppeteerBeforeAppReady(): Promise<void> {
+    if (this.eApp.isReady()) {
+      throw new Error('Must be called at startup before the electron app is ready.');
+    }
+    const actualPort = await getPort({ host: '127.0.0.1', port: 9219 });
+    this.eApp.commandLine.appendSwitch('remote-debugging-port', `${actualPort}`);
+    this.eApp.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1');
+  }
+
+  private async connectPuppeteerAfterAppReady(): Promise<void> {
+    if (!this.eApp.isReady()) {
+      throw new Error('Please connect after the app is ready.');
+    }
+    if (!puppeteer) {
+      throw new Error("The parameter 'puppeteer' was not passed in.");
+    }
+    const port = this.eApp.commandLine.getSwitchValue('remote-debugging-port');
+    if (!port) {
+      throw new Error('Please call initialize before calling connect.');
+    }
+    const debuggerUrl = await retry(() => this.getAppDebuggerUrl(port));
+    this.browser = await puppeteer.connect({
+      browserWSEndpoint: debuggerUrl,
+      defaultViewport: null,
+    });
+  }
+
+  private async getAppDebuggerUrl(port: string): Promise<string> {
+    const response = await fetch(`http://127.0.0.1:${port}/json/version?t=${Math.random()}`);
+    const debugEndpoints = await response.json();
+    return debugEndpoints.webSocketDebuggerUrl;
   }
 
   sendMainWindowEvent(event: string, data?: any) {
@@ -179,12 +213,6 @@ class Application implements HBRCApplication {
     return this.instanceManager;
   }
 
-  getPuppeteerElectron() {
-    if (!this._isReady) {
-      throw new Error('Application not ready');
-    }
-    return this.puppeteerElectron;
-  }
 
   setDebugMode(isEnableDebug: boolean): void {
     const _isDebugging = isDebugging();

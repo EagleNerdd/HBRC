@@ -1,42 +1,53 @@
 import { FSDB } from 'file-system-db';
-import { PuppeteerElectron } from '@main/pie';
-import { PuppeteerInstanceController, BrowserInstanceController } from './controllers';
-import { Page } from 'puppeteer-core';
-import { BrowserInstance, BrowserInstanceStatus } from '@shared/types';
-import { IncommingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
-import { Logger, createLogger } from '@main/logging';
+import { BrowserInstanceController } from './controllers';
+import { Browser } from 'puppeteer-core';
+import { BrowserInstance, BrowserInstanceStatus, BrowserInstanceType } from '@shared/types';
+import { IncomingTransportMessage, OutgoingTransportMessage } from '@shared/types/message';
+import { createLogger, Logger } from '@main/logging';
 import { ClientEvents } from '../events';
 import { TransporterMessaging } from '../transporters';
-import { getDataPath, isDebugging } from '@main/utils';
+import { getDataPath } from '@main/utils';
 import { ENVIRONMENT } from '@shared/constants';
+import { createInstanceController } from './controllers/factory';
 
 class BrowserInstanceManager {
   private db: FSDB;
-  private channelControlllerMap = new Map<string, BrowserInstanceController>();
-  private instanceStatusMap = new Map<string, BrowserInstanceStatus>();
+  private channelControllerMap = new Map<string, BrowserInstanceController>();
+  private instanceRuntimeStateMap = new Map<string, {
+    status?: BrowserInstanceStatus,
+    headless?: boolean,
+  }>();
   private logger: Logger;
+  private browser?: Browser;
+
   constructor(
-    private readonly pie: PuppeteerElectron,
     private readonly transporterMessaging: TransporterMessaging,
-    private readonly clientEvents: ClientEvents
+    private readonly clientEvents: ClientEvents,
   ) {
     this.logger = createLogger('browserInstanceManager');
   }
 
-  async init() {
+  async init(browser: Browser) {
+    this.browser = browser;
     const dbFileName = ENVIRONMENT.IS_LOCAL ? 'instances.local.json' : 'instances.json';
     const dbPath = getDataPath(dbFileName);
     this.logger.debug('init', { dbPath });
     this.db = new FSDB(dbPath, true);
     this.clientEvents.onInstanceUpdated.listen(({ sessionId, updated }) => {
+      let data = this.instanceRuntimeStateMap.get(sessionId) ?? {};
       if (updated.status) {
-        this.instanceStatusMap.set(sessionId, updated.status);
+        data = { ...data, status: updated.status };
       }
+      if (typeof updated.headless !== 'undefined') {
+        data = { ...data, headless: updated.headless };
+      }
+      this.logger.debug('onInstanceUpdated', { updated, data });
+      this.instanceRuntimeStateMap.set(sessionId, data);
     });
     this.transporterMessaging.onMessageReceived(this.processTransportMessage.bind(this));
   }
 
-  private async processTransportMessage(data: IncommingTransportMessage) {
+  private async processTransportMessage(data: IncomingTransportMessage) {
     this.logger.debug('processTransportMessage', { data });
     if (data.controlInstance) {
       const { sessionId, instructions } = data.controlInstance;
@@ -49,7 +60,7 @@ class BrowserInstanceManager {
     }
   }
 
-  private async handleManageInstanceMessage(data: IncommingTransportMessage['manageInstance']) {
+  private async handleManageInstanceMessage(data: IncomingTransportMessage['manageInstance']) {
     this.logger.debug('handleManageInstanceMessage', { data });
     const { action, payload } = data;
     if (action == 'updateInstance') {
@@ -73,7 +84,10 @@ class BrowserInstanceManager {
     if (!bi) {
       return bi;
     }
-    bi.status = this.instanceStatusMap.get(bi.sessionId) || 'Stopped';
+    const data = this.instanceRuntimeStateMap.get(bi.sessionId);
+    this.logger.debug('finalizeInstanceData', { data });
+    bi.status = data?.status || 'Stopped';
+    bi.headless = data?.headless;
     return bi;
   }
 
@@ -84,7 +98,7 @@ class BrowserInstanceManager {
   }
 
   async getRunningInstanceSessionIdSet() {
-    return new Set(this.channelControlllerMap.keys());
+    return new Set(this.channelControllerMap.keys());
   }
 
   async getInstance(sessionId: string) {
@@ -122,21 +136,24 @@ class BrowserInstanceManager {
     this.emitInstanceUpdatedEvent(sessionId, { status: 'Stopping' });
     const controller = this.getController(sessionId);
     if (controller) {
-      await controller.destroy();
-      await this.pie.closeWindow(sessionId);
-      this.channelControlllerMap.delete(sessionId);
+      const isCleared = await controller.destroy();
+      this.logger.debug('Instance controller destroyed', { sessionId, isCleared });
+      if (isCleared) {
+        this.channelControllerMap.delete(sessionId);
+        this.logger.debug('Instance controller cleared', { sessionId });
+      }
     }
     this.emitInstanceUpdatedEvent(sessionId, { status: 'Stopped' });
   }
 
-  async addInstance(name: string, url: string) {
-    const { sessionId, page } = await this.openAddChannelWindownPage(url);
+  async addInstance(name: string, url: string, type: BrowserInstanceType) {
     const bi: BrowserInstance = {
       name,
-      sessionId,
+      sessionId: '',
       url,
+      type,
     };
-    await this.createInstanceController(bi, page);
+    await this.createInstanceController(bi, { show: true, hideOnClose: true });
     this.saveInstance(bi);
     await this.pushMessageToTransporter('addInstance', { instance: bi });
   }
@@ -162,41 +179,51 @@ class BrowserInstanceManager {
     });
   }
 
-  private async openAddChannelWindownPage(url: string) {
-    const { window, page, identifier } = await this.pie.newWindowPage(url, undefined, {
-      show: true,
-      hideOnClose: true,
-    });
-    return { window, page, sessionId: identifier };
+  async showInstanceWindow(sessionId: string) {
+    const controller = this.getController(sessionId);
+    if (controller?.showWindow) {
+      await controller.showWindow();
+    }
   }
 
-  async showInstanceWindow(sessionId: string) {
-    const { window } = this.pie.getWindowPage(sessionId) || {};
-    if (window) {
-      if (isDebugging()) {
-        window.webContents.openDevTools({ mode: 'right' });
-      }
-      window.show();
+  async hideInstanceWindow(sessionId: string) {
+    const controller = this.getController(sessionId);
+    if (controller?.hideWindow) {
+      await controller.hideWindow();
     }
   }
 
   private async loadInstanceWindowPage(bi: BrowserInstance) {
-    if (this.channelControlllerMap.has(bi.sessionId)) {
-      return;
-    }
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Starting' });
-    const { page } = await this.pie.newWindowPage(bi.url, bi.sessionId, {
-      show: false,
-      hideOnClose: true,
-      userAgent: bi.userAgent,
-    });
-    await this.createInstanceController(bi, page);
+    if (!this.channelControllerMap.has(bi.sessionId)) {
+      this.logger.debug('Creating new instance controller', { sessionId: bi.sessionId });
+      await this.createInstanceController(bi, {
+        show: false,
+        hideOnClose: true,
+        identifier: bi.sessionId,
+      });
+    } else {
+      this.logger.debug('Instance controller already exists', { sessionId: bi.sessionId });
+      const instance = this.channelControllerMap.get(bi.sessionId);
+      await instance.showWindow();
+    }
     this.logger.debug('loadInstanceWindowPage', bi);
   }
 
-  private async createInstanceController(bi: BrowserInstance, page: Page) {
-    const controller = new PuppeteerInstanceController(bi, this.transporterMessaging, this.clientEvents, page);
-    this.channelControlllerMap.set(bi.sessionId, controller);
+  private async createInstanceController(
+    bi: BrowserInstance,
+    options?: {
+      show?: boolean;
+      hideOnClose?: boolean;
+      identifier?: string;
+    },
+  ) {
+    if (!this.browser) {
+      throw new Error('Browser not initialized');
+    }
+    const onClose = () => this.stopInstance(bi.sessionId);
+    const controller = await createInstanceController(this.browser, bi, this.transporterMessaging, this.clientEvents, { ...options, onClose });
+    this.channelControllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });
     return controller;
@@ -213,7 +240,7 @@ class BrowserInstanceManager {
       restart?: boolean;
       notifyToTransporter?: boolean;
       notifyToRenderer?: boolean;
-    }
+    },
   ) {
     const { restart = true, notifyToTransporter = false, notifyToRenderer = false } = options || {};
     const i = await this.getInstance(sessionId);
@@ -238,7 +265,7 @@ class BrowserInstanceManager {
   }
 
   getController(sessionId: string) {
-    return this.channelControlllerMap.get(sessionId);
+    return this.channelControllerMap.get(sessionId);
   }
 
   async callInstanceFunction(sessionId: string, method: string, ...args: any[]) {

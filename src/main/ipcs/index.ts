@@ -5,6 +5,7 @@ import {
   UPDATE_INSTANCE,
   DELETE_INSTANCE,
   SHOW_INSTANCE_WINDOW,
+  HIDE_INSTANCE_WINDOW,
   SET_APPLICATION_OPTIONS,
   CALL_INSTANCE_FUNCTION,
   GET_APPLICATION_INFO,
@@ -21,8 +22,8 @@ export const registerIPCs = (app: Application) => {
   });
 
   ipcMain.handle(ADD_INSTANCE, async (...args) => {
-    const [_, name, url] = args;
-    return await app.getInstanceManager().addInstance(name, url);
+    const [_, name, url, type] = args;
+    return await app.getInstanceManager().addInstance(name, url, type);
   });
   ipcMain.handle(UPDATE_INSTANCE, async (...args) => {
     const [_, sessionId, updatedData, options] = args;
@@ -35,6 +36,10 @@ export const registerIPCs = (app: Application) => {
   ipcMain.handle(SHOW_INSTANCE_WINDOW, async (...args) => {
     const [_, sessionId] = args;
     return await app.getInstanceManager().showInstanceWindow(sessionId);
+  });
+  ipcMain.handle(HIDE_INSTANCE_WINDOW, async (...args) => {
+    const [_, sessionId] = args;
+    return await app.getInstanceManager().hideInstanceWindow(sessionId);
   });
   ipcMain.handle(CALL_INSTANCE_FUNCTION, async (...args) => {
     const [_, sessionId, method, ...fArgs] = args;

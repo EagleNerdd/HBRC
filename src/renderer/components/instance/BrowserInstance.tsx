@@ -1,31 +1,24 @@
 import React, { useEffect } from 'react';
-import { Card, Tag, Popconfirm, message, Modal, Form, Input, Button, Divider, Space } from 'antd';
-import {
-  SendOutlined,
-  WindowsOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  TagOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+import { Button, Card, Divider, Form, Input, message, Modal, Popconfirm, Space, Tag } from 'antd';
+import { DeleteOutlined, EditOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, SendOutlined, WindowsOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
-import { BrowserInstance, BrowserInstanceMessage } from '@shared/types';
+import { BrowserInstance, BrowserInstanceMessage, BrowserInstanceNames } from '@shared/types';
 import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 
 const DeleteBtn = ({ disabled, onConfirm }) => {
   return (
     <Popconfirm
       disabled={disabled}
-      title="Delete intance"
+      title="Delete instance"
       description="Are you sure to delete this instance?"
       onConfirm={onConfirm}
       okText="Delete"
       cancelText="Cancel"
     >
-      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {}} />
+      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {
+      }} />
     </Popconfirm>
   );
 };
@@ -78,19 +71,19 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   );
 };
 
-const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
+const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
   const [form] = Form.useForm();
   const instanceManager = useBrowserInstanceManager();
   const updateInstance = useMutation({
-    mutationFn: ({ attributes }: { attributes: Record<string, string> }) =>
+    mutationFn: ({ name, attributes }: { name: string, attributes: Record<string, string> }) =>
       instanceManager.updateInstance(
         instance.sessionId,
-        { attributes },
+        { name, attributes },
         {
           restart: false,
           notifyToTransporter: true,
           notifyToRenderer: true,
-        }
+        },
       ),
     onSuccess: () => {
       message.success('Update attributes success');
@@ -104,6 +97,7 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
   useEffect(() => {
     if (instance) {
       form.setFieldsValue({
+        name: instance.name,
         attributes: Object.entries(instance.attributes || {}).map(([key, value]) => ({ key, value })),
       });
     }
@@ -111,7 +105,7 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
 
   return (
     <Modal
-      title={`${instance?.name} - Set Attributes`}
+      title={`${instance?.name} - Edit Instance`}
       open={isOpen}
       onOk={async () => {
         const values = form.getFieldsValue();
@@ -123,13 +117,24 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
           }
           attributes[key] = value;
         }
-        updateInstance.mutate({ attributes });
+        updateInstance.mutate({ name: values.name, attributes });
       }}
       onCancel={() => setIsOpen(false)}
       width={700}
       okText="Save"
     >
-      <Form form={form} layout="vertical" name="attributesForm">
+      <Form form={form} name="editInstance">
+        <h4>Instance</h4>
+        <Form.Item
+          label="Name"
+          name="name"
+          rules={[{ required: true, message: 'Please input instance name!' }]}
+        >
+          <Input placeholder="Example 1" />
+        </Form.Item>
+      </Form>
+      <Form form={form} layout="vertical" name="editAttributes">
+        <h4>Attributes</h4>
         <Form.List name="attributes">
           {(fields, { add, remove }) => (
             <>
@@ -162,9 +167,9 @@ const SetAttributesModal = ({ isOpen, instance, setIsOpen }) => {
 };
 
 export default function BrowserInstanceComponent({
-  instance,
-  instanceMessage,
-}: {
+                                                   instance,
+                                                   instanceMessage,
+                                                 }: {
   instance: BrowserInstance;
   instanceMessage?: BrowserInstanceMessage;
 }) {
@@ -182,42 +187,42 @@ export default function BrowserInstanceComponent({
       queryClient.invalidateQueries({ queryKey: [QueryKeys.GET_INSTANCES] });
     },
     onError(error, variables, context) {
-      message.error('Delete intance failed');
+      message.error('Delete instance failed');
     },
   });
 
   const startInstance = useMutation({
     mutationFn: instanceManager.startInstance,
     onSuccess: () => {
-      message.success('Start intance success');
+      message.success('Start instance success');
     },
     onError(error, variables, context) {
-      message.error('Start intance failed');
+      message.error('Start instance failed');
     },
   });
 
   const stopInstance = useMutation({
     mutationFn: instanceManager.stopInstance,
     onSuccess: () => {
-      message.success('Stop intance success');
+      message.success('Stop instance success');
     },
     onError(error, variables, context) {
-      message.error('Stop intance failed');
+      message.error('Stop instance failed');
     },
   });
 
   const [isCFModalOpen, setCFModalOpen] = React.useState(false);
-  const [isSetAttributesModalOpen, setSetAttributesModalOpen] = React.useState(false);
+  const [isSetAttributesModalOpen, setEditInstanceModalOpen] = React.useState(false);
 
   const actions = [];
 
   actions.push(
-    <TagOutlined
-      key="attributes"
+    <EditOutlined
+      key="edit"
       onClick={() => {
-        setSetAttributesModalOpen(true);
+        setEditInstanceModalOpen(true);
       }}
-    />
+    />,
   );
 
   if (status === 'Running') {
@@ -228,16 +233,27 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           stopInstance.mutate(sessionId);
         }}
-      />
+      />,
     );
-    actions.push(
-      <WindowsOutlined
-        key="showWindow"
-        onClick={() => {
-          instanceManager.showInstanceWindow(sessionId);
-        }}
-      />
-    );
+    if ((instance.type != 'puppeteer' && instance.type != 'single-puppeteer') || instance.headless) {
+      actions.push(
+        <WindowsOutlined
+          key="showWindow"
+          onClick={() => {
+            instanceManager.showInstanceWindow(sessionId);
+          }}
+        />,
+      );
+    } else {
+      actions.push(
+        <EyeInvisibleOutlined
+          key="hideWindow"
+          onClick={() => {
+            instanceManager.hideInstanceWindow(sessionId);
+          }}
+        />,
+      );
+    }
     if (isDebug) {
       actions.push(
         <SendOutlined
@@ -245,7 +261,7 @@ export default function BrowserInstanceComponent({
           onClick={() => {
             setCFModalOpen(true);
           }}
-        />
+        />,
       );
     }
   } else if (status === 'Stopped') {
@@ -256,11 +272,11 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           startInstance.mutate(sessionId);
         }}
-      />
+      />,
     );
   }
   actions.push(
-    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />
+    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />,
   );
 
   let statusColor = 'default';
@@ -290,6 +306,8 @@ export default function BrowserInstanceComponent({
           <div>
             <div>
               <Tag color={statusColor}>{status}</Tag>
+              {instance.type != 'electron' && <Tag color="purple">{BrowserInstanceNames[instance.type] ?? instance.type}</Tag>}
+              {instance.headless && <Tag color="red">headless</Tag>}
               <Tag color="blue">{instance.url}</Tag>
             </div>
             {renderInstanceMessage()}
@@ -297,7 +315,7 @@ export default function BrowserInstanceComponent({
         }
       />
       <CallFunctionModal instance={instance} isOpen={isCFModalOpen} setIsOpen={setCFModalOpen} />
-      <SetAttributesModal instance={instance} isOpen={isSetAttributesModalOpen} setIsOpen={setSetAttributesModalOpen} />
+      <EditInstanceModal instance={instance} isOpen={isSetAttributesModalOpen} setIsOpen={setEditInstanceModalOpen} />
     </Card>
   );
 }
