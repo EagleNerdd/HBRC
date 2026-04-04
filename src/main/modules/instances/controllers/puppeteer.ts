@@ -78,7 +78,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
         throw new Error(`page command ${pageCommand} not found`);
       }
       return await func.bind(this.page)(...args);
-    } else if (['browserEval', 'healthCheck'].includes(command)) {
+    } else if (['browserEval', 'focus', 'healthCheck'].includes(command)) {
       return await this[command].bind(this)(...args);
     } else {
       throw new Error(`command ${command} invalid`);
@@ -87,6 +87,11 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   browserEval(code: string): Promise<any> {
     return this.page.evaluate(code);
+  }
+
+  async focus() {
+    await this.page.bringToFront();
+    await this.page.focus('body');
   }
 
   async healthCheck(config: Partial<HealthCheckConfig> & Pick<HealthCheckConfig, 'instruction'>): Promise<void> {

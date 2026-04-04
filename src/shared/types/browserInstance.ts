@@ -1,5 +1,5 @@
 export type BrowserInstanceInstruction = {
-  command: 'browserEval' | 'page' | 'healthCheck';
+  command: 'focus' | 'browserEval' | 'page' | 'healthCheck';
   pageCommand?: string;
   args: any[];
 };
