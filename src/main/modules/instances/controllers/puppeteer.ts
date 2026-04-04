@@ -1,7 +1,7 @@
 import { BaseBrowserInstanceController } from './base';
 import puppeteer, { Browser, BrowserContext, Page } from 'puppeteer-core';
 import { executablePath } from 'puppeteer';
-import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
+import { BrowserInstance, BrowserInstanceInstruction, HealthCheckConfig, HealthCheckState } from '@shared/types';
 import { createLogger, Logger } from '@main/logging';
 import { TransporterMessaging } from '@main/modules/transporters';
 import { ClientEvents } from '@main/modules/events';
@@ -13,6 +13,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   private logger: Logger;
   protected browser?: Browser | BrowserContext;
+  protected _healthCheckState?: HealthCheckState | null = null;
 
   protected constructor(
     instance: BrowserInstance,
@@ -26,7 +27,16 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
     this.browser = browser;
   }
 
+  async _reset(): Promise<void> {
+    if (this._healthCheckState && this._healthCheckState.intervalTimer) {
+      this._healthCheckState.isEnabled = false;
+      clearInterval(this._healthCheckState.intervalTimer);
+    }
+    this._healthCheckState = null;
+  }
+
   async restart() {
+    await this._reset();
     await this.page.reload();
     await this.executeInitInstructions();
   }
@@ -68,7 +78,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
         throw new Error(`page command ${pageCommand} not found`);
       }
       return await func.bind(this.page)(...args);
-    } else if (command == 'browserEval') {
+    } else if (['browserEval', 'healthCheck'].includes(command)) {
       return await this[command].bind(this)(...args);
     } else {
       throw new Error(`command ${command} invalid`);
@@ -77,6 +87,47 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   browserEval(code: string): Promise<any> {
     return this.page.evaluate(code);
+  }
+
+  async healthCheck(config: Partial<HealthCheckConfig> & Pick<HealthCheckConfig, 'instruction'>): Promise<void> {
+    const defaults: Omit<HealthCheckState, 'instruction'> = {
+      isEnabled: false,
+      failureThreshold: 3,
+      intervalSeconds: 15,
+      timeout: 10,
+      lastCheck: 0,
+      lastCheckResult: true,
+      failures: 0,
+    };
+    const s = Object.assign({}, defaults, config);
+    this._healthCheckState = s;
+    if (!s.instruction) {
+      return;
+    }
+    if (s.intervalSeconds > 0) {
+      s.isEnabled = true;
+      const check = async (): Promise<void> => {
+        if (!s.isEnabled) {
+          return clearInterval(s.intervalTimer);
+        }
+        const startTime = Date.now();
+        s.lastCheck = startTime;
+        const result = await this.executeInstruction(s.instruction);
+        if (Date.now() - startTime > s.timeout || s.lastCheck !== startTime) {
+          return;
+        }
+        s.lastCheckResult = !!result;
+        if (s.lastCheckResult) {
+          s.failures = 0;
+        } else {
+          s.failures++;
+        }
+        if (s.failures >= s.failureThreshold) {
+          return this.restart();
+        }
+      };
+      s.intervalTimer = setInterval(check, s.intervalSeconds * 1000);
+    }
   }
 
   async closeWindow() {

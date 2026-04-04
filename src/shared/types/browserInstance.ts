@@ -1,5 +1,5 @@
 export type BrowserInstanceInstruction = {
-  command: 'browserEval' | 'page';
+  command: 'browserEval' | 'page' | 'healthCheck';
   pageCommand?: string;
   args: any[];
 };
@@ -31,3 +31,18 @@ export type BrowserInstance = {
   headless?: boolean;
   [key: string]: any;
 };
+
+export type HealthCheckConfig = {
+  failureThreshold: number;
+  intervalSeconds: number;
+  timeout: number;
+  instruction: BrowserInstanceInstruction;
+}
+
+export type HealthCheckState = HealthCheckConfig & {
+  isEnabled: boolean;
+  intervalTimer?: NodeJS.Timeout;
+  lastCheck: number;
+  lastCheckResult: boolean;
+  failures: number;
+}
