@@ -1,7 +1,7 @@
 import { BaseBrowserInstanceController } from './base';
 import puppeteer, { Browser, BrowserContext, Page } from 'puppeteer-core';
 import { executablePath } from 'puppeteer';
-import { BrowserInstance, BrowserInstanceInstruction } from '@shared/types';
+import { BrowserInstance, BrowserInstanceInstruction, IntervalJobConfig, JobState } from '@shared/types';
 import { createLogger, Logger } from '@main/logging';
 import { TransporterMessaging } from '@main/modules/transporters';
 import { ClientEvents } from '@main/modules/events';
@@ -13,13 +13,15 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   private logger: Logger;
   protected browser?: Browser | BrowserContext;
+  protected activeJobs: Map<string, JobState> = new Map();
+  protected supportedEvalCommands: Set<string> = new Set(['addJob']);
 
   protected constructor(
     instance: BrowserInstance,
     transporterMessaging: TransporterMessaging,
     events: ClientEvents,
     protected page: Page,
-    browser?: Browser | BrowserContext,
+    browser?: Browser | BrowserContext
   ) {
     super(instance, transporterMessaging, events);
     this.logger = createLogger('puppeteerInstanceController');
@@ -27,6 +29,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
   }
 
   async restart() {
+    await this.clearJobs();
     await this.page.reload();
     await this.executeInitInstructions();
   }
@@ -61,15 +64,24 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
   }
 
   async executeInstruction(instruction: BrowserInstanceInstruction): Promise<any> {
-    const { command, pageCommand, args } = instruction;
+    const { command, pageCommand, evalCommand, args } = instruction;
     if (command == 'page' && pageCommand) {
       const func = this.page[pageCommand];
       if (!func) {
         throw new Error(`page command ${pageCommand} not found`);
       }
       return await func.bind(this.page)(...args);
-    } else if (command == 'browserEval') {
-      return await this[command].bind(this)(...args);
+    } else if (command === 'browserEval') {
+      return await this.browserEval.apply(this, args);
+    } else if (command === 'eval' && evalCommand) {
+      if (!this.supportedEvalCommands.has(evalCommand)) {
+        throw new Error(`eval command ${evalCommand} is not supported`);
+      }
+      const func = this[evalCommand];
+      if (!func || typeof func !== 'function') {
+        throw new Error(`eval command ${evalCommand} not found`);
+      }
+      return await func.apply(this, args);
     } else {
       throw new Error(`command ${command} invalid`);
     }
@@ -79,7 +91,71 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
     return this.page.evaluate(code);
   }
 
+  async addJob(config: IntervalJobConfig) {
+    const jobState: JobState = {
+      ...config,
+      timeoutSeconds: config.timeoutSeconds || 10,
+      failureThreshold: config.failureThreshold || 3,
+      onFail: config.onFail || 'ignore',
+      failures: 0,
+      isRunning: true,
+      timer: null,
+    };
+
+    this.activeJobs.set(config.id, jobState);
+
+    const runJob = async () => {
+      if (!jobState.isRunning || !this.activeJobs.has(config.id)) return;
+
+      try {
+        const startTime = Date.now();
+        let result: any;
+        for (const instr of jobState.instructions) {
+          result = await this.executeInstruction(instr as BrowserInstanceInstruction);
+        }
+
+        console.log('Result: ', result);
+
+        const executionTime = Date.now() - startTime;
+        const isTimeout = executionTime > jobState.timeoutSeconds! * 1000;
+
+        if (result && !isTimeout) {
+          jobState.failures = 0;
+        } else {
+          jobState.failures++;
+        }
+      } catch (error) {
+        this.logger.error(`Job [${config.id}] failed with error:`, error);
+        jobState.failures++;
+      }
+
+      if (jobState.failures >= jobState.failureThreshold!) {
+        this.logger.warn(`Job [${config.id}] reached failure threshold! Action: ${jobState.onFail}`);
+        if (jobState.onFail === 'restart') {
+          return this.restart();
+        } else if (jobState.onFail === 'stop') {
+          return this.closeWindow();
+        }
+      }
+
+      if (jobState.isRunning) {
+        jobState.timer = setTimeout(runJob, jobState.intervalSeconds * 1000);
+      }
+    };
+
+    jobState.timer = setTimeout(runJob, jobState.intervalSeconds * 1000);
+  }
+
+  async clearJobs() {
+    this.activeJobs.forEach((job) => {
+      job.isRunning = false;
+      if (job.timer) clearTimeout(job.timer);
+    });
+    this.activeJobs.clear();
+  }
+
   async closeWindow() {
+    await this.clearJobs();
     if (this.browser) {
       await this.postInstanceUpdated({ status: 'Stopping' });
       this.logger.debug('Closing browser', { sessionId: this.instance.sessionId });
@@ -100,16 +176,17 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 export class PuppeteerInstanceController extends BasePuppeteerInstanceController {
   private readonly _onClose: () => void;
 
-  constructor(instance: BrowserInstance,
-              transporterMessaging: TransporterMessaging,
-              events: ClientEvents,
-              page: Page,
-              browser?: Browser,
-              private options?: {
-                identifier?: string,
-                userAgent?: string,
-                onClose?: () => void,
-              },
+  constructor(
+    instance: BrowserInstance,
+    transporterMessaging: TransporterMessaging,
+    events: ClientEvents,
+    page: Page,
+    browser?: Browser,
+    private options?: {
+      identifier?: string;
+      userAgent?: string;
+      onClose?: () => void;
+    }
   ) {
     super(instance, transporterMessaging, events, page, browser);
     this._onClose = options?.onClose;
@@ -118,8 +195,8 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
   static async launchBrowser(
     headless: boolean,
     userAgent?: string | undefined,
-    dataDir?: string,
-  ): Promise<{ browser: Browser, page: Page }> {
+    dataDir?: string
+  ): Promise<{ browser: Browser; page: Page }> {
     const args = [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -152,8 +229,8 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     headless: boolean,
     identifier: string,
     userAgent: string | undefined,
-    url: string,
-  ): Promise<{ browser: Browser, page: Page }> {
+    url: string
+  ): Promise<{ browser: Browser; page: Page }> {
     const dataDir = getDataPath('puppeteer_data', identifier);
 
     const { browser, page } = await this.launchBrowser(headless, userAgent, dataDir);
@@ -174,8 +251,8 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     options?: {
       show?: boolean;
       identifier?: string;
-      onClose?: () => void,
-    },
+      onClose?: () => void;
+    }
   ): Promise<PuppeteerInstanceController> {
     const { show, identifier = instance.sessionId || randomString(30), onClose } = options || {};
     const headless = !show;
@@ -190,14 +267,26 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     }
 
     instance.sessionId = identifier;
-    const controller = new PuppeteerInstanceController(instance, transporterMessaging, clientEvents, page, browser, opts);
+    const controller = new PuppeteerInstanceController(
+      instance,
+      transporterMessaging,
+      clientEvents,
+      page,
+      browser,
+      opts
+    );
     await controller.postInstanceUpdated({ headless });
     return controller;
   }
 
   async switchToHeadless(headless: boolean) {
     await this.postInstanceUpdated({ status: 'Starting', headless });
-    const { browser, page } = await PuppeteerInstanceController.createBrowser(headless, this.options.identifier, this.options.userAgent, this.instance.url);
+    const { browser, page } = await PuppeteerInstanceController.createBrowser(
+      headless,
+      this.options.identifier,
+      this.options.userAgent,
+      this.instance.url
+    );
     this.browser = browser;
     this.page = page;
     if (this._onClose) {
