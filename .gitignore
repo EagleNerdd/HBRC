@@ -3,3 +3,4 @@
 *.local
 .env
 /dist
+.agents
