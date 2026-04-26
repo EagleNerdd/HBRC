@@ -19,7 +19,10 @@ export class HttpTransporter extends BaseTransporter {
   private puller: AxiosInstance;
   private pusher: AxiosInstance;
   private interVal = undefined;
-  constructor(protected name: string, protected readonly options: HttpTransporterOptions) {
+  constructor(
+    protected name: string,
+    protected readonly options: HttpTransporterOptions
+  ) {
     super(name, options);
     if (options.puller) {
       this.puller = axios.create({
@@ -56,7 +59,7 @@ export class HttpTransporter extends BaseTransporter {
           this.onReceiveCallback(res.data);
         }
       } catch (e) {
-        console.log(e.error);
+        this.logger.error('receive message failed', { error: e.toString() });
       }
     }, intervalSeconds * 1000);
     this.onConnectedCallback && this.onConnectedCallback();

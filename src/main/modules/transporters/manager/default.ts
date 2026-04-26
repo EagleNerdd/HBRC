@@ -31,7 +31,6 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
       throw new Error('Default transporter not found');
     }
     this.clientEvents.onTransporterStatusChanged.emit('connecting');
-    defaultTransporter.connect();
     defaultTransporter.onConnected(async () => {
       this.clientEvents.onTransporterStatusChanged.emit('connected');
     });
@@ -56,7 +55,7 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
     });
     this.ttcMessagesQueue.start();
     this.cttMessagesQueue.start();
-
+    defaultTransporter.connect();
     for (const [k, v] of Object.entries(this.transporters)) {
       if (k != 'default') {
         v.connect();
