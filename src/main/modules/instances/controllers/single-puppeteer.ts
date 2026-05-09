@@ -129,9 +129,13 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
     await this.switchToHeadless(true);
   }
 
+  async _initPage(page: Page) {
+    await page.setRequestInterception(true);
+    page.on('request', this.onRequest.bind(this));
+  }
+
   async init(): Promise<void> {
-    await this.page.setRequestInterception(true);
-    this.page.on('request', this.onRequest.bind(this));
+    await this._initPage(this.page);
 
     await this.restoreSession(this.page);
     await this.page.goto(this.instance.url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
@@ -156,6 +160,7 @@ export class SinglePuppeteerInstanceController extends BasePuppeteerInstanceCont
 
   async saveSessionInBackground() {
     const page = await this.browser.newPage();
+    await this._initPage(page);
     await this.saveSession(page).catch(console.error);
     await page.close();
   }
