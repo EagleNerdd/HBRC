@@ -1,7 +1,5 @@
 import { createLogger } from '@main/logging';
-import getPort from 'get-port';
 import { TunnelProvider } from './providers/base';
-import { TunnelHttpServer, MessageHandler } from './server';
 
 export type TunnelManagerOptions = {
   providers: TunnelProvider[];
@@ -10,18 +8,15 @@ export type TunnelManagerOptions = {
 
 export class TunnelManager {
   private logger = createLogger('tunnel.manager');
-  private server: TunnelHttpServer;
-  private localPort: number;
   private currentUrl: string | null = null;
   private urlChangedCallback: ((url: string | null) => void) | null = null;
   private stopped = false;
   private readonly retryDelayMs: number;
 
   constructor(
-    onMessage: MessageHandler,
-    private readonly options: TunnelManagerOptions,
+    private readonly localPort: number,
+    private readonly options: TunnelManagerOptions
   ) {
-    this.server = new TunnelHttpServer(onMessage);
     this.retryDelayMs = options.retryDelayMs ?? 60_000;
   }
 
@@ -35,17 +30,13 @@ export class TunnelManager {
 
   async start(): Promise<void> {
     this.stopped = false;
-    this.localPort = await getPort({ host: '127.0.0.1', port: 55906 });
-    await this.server.listen(this.localPort);
     this.logger.info('tunnel manager started', { localPort: this.localPort });
     await this.tryProviders(0);
   }
 
   async stop(): Promise<void> {
     this.stopped = true;
-    const active = this.options.providers.find((p) => p.getName() === this.currentUrl);
     await Promise.allSettled(this.options.providers.map((p) => p.stop()));
-    await this.server.close();
     this.currentUrl = null;
   }
 

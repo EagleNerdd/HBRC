@@ -12,8 +12,10 @@ import { MainWindow } from '../windows';
 import { registerIPCs } from '../ipcs';
 import { TransporterManager, DefaultTransporterManager, TransporterMessaging } from '@main/modules/transporters';
 import { OutgoingTransportMessage } from '@shared/types';
+import { HttpServer } from '@main/modules/http';
 import {
   TunnelManager,
+  TunnelProvider,
   LocaltunnelProvider,
   DevTunnelProvider,
   CloudflareTunnelProvider,
@@ -42,7 +44,9 @@ class Application implements HBRCApplication {
   private instanceManager: BrowserInstanceManager;
   private transporterManager: TransporterManager;
   private transporterMessaging: TransporterMessaging;
-  private tunnelManager: TunnelManager;
+  private httpServer: HttpServer;
+  private httpServerPort: number;
+  private tunnelManager: TunnelManager | null = null;
   private downloadManager: DownloadManager;
   private browser?: Browser;
   private _isReady = false;
@@ -85,11 +89,11 @@ class Application implements HBRCApplication {
     };
   }
 
-  async pushAgentInfoToTransporter(extra?: { tunnelUrl?: string }) {
+  async pushAgentInfoToTransporter(extra?: { tunnelUrl?: string | null }) {
     const info = {
       version: app.getVersion(),
       name: this.agentName,
-      tunnelUrl: this.tunnelManager.getCurrentUrl(),
+      tunnelUrl: this.tunnelManager?.getCurrentUrl() ?? null,
       ...(extra || {}),
     };
     await this.pushAgentMessageToTransporter('info', info);
@@ -99,7 +103,6 @@ class Application implements HBRCApplication {
     this.options = { ...this.options, ...options };
     this.logger.debug('setOptions', { options });
     await this.initTransporters();
-    await this.initTunnel(); // Init tunnel must call after transporter because it have to send tunnel url
     if (save) {
       await this.clientKvStorage.setItem('applicationOptions', this.options);
     }
@@ -130,24 +133,79 @@ class Application implements HBRCApplication {
     await this.transporterManager.init();
   }
 
-  private async initTunnel() {
-    const isCloudflaredDownloaded = await this.downloadManager.isDownloaded('cloudflared');
+  isTunnelActive(): boolean {
+    return this.tunnelManager !== null;
+  }
+
+  async getTunnelState() {
+    const [[isCloudflaredDownloaded, isFrpDownloaded], savedState] = await Promise.all([
+      Promise.all([this.downloadManager.isDownloaded('cloudflared'), this.downloadManager.isDownloaded('frpc')]),
+      this.clientKvStorage.getItem('tunnelState') as Promise<{ active: boolean; selectedProviders: string[] } | null>,
+    ]);
+    return {
+      isActive: this.isTunnelActive(),
+      currentUrl: this.tunnelManager?.getCurrentUrl() ?? null,
+      selectedProviders: savedState?.selectedProviders ?? [],
+      providers: [
+        { name: 'frp', label: 'frp (frpc)', isDownloaded: isFrpDownloaded },
+        { name: 'cloudflare', label: 'Cloudflare', isDownloaded: isCloudflaredDownloaded },
+        { name: 'localtunnel', label: 'LocalTunnel', isDownloaded: true },
+        ...(isDebugging() ? [{ name: 'devtunnel', label: 'Dev Tunnel', isDownloaded: true }] : []),
+      ],
+    };
+  }
+
+  async activateTunnel(selectedProviders: string[]): Promise<void> {
+    if (this.tunnelManager) {
+      await this.tunnelManager.stop();
+      this.tunnelManager = null;
+    }
+    const [isCloudflaredDownloaded, isFrpDownloaded] = await Promise.all([
+      this.downloadManager.isDownloaded('cloudflared'),
+      this.downloadManager.isDownloaded('frpc'),
+    ]);
     const cloudflaredBinPath = await this.downloadManager.getBinaryPath('cloudflared');
     const frpOptions = this.options.tunnels?.frp;
-    const isFrpDownloaded = await this.downloadManager.isDownloaded('frpc');
-    const providers = [
-      ...(ENVIRONMENT.IS_DEV ? [new DevTunnelProvider()] : []),
-      ...(frpOptions && isFrpDownloaded ? [new FrpTunnelProvider(frpOptions)] : []),
-      ...(isCloudflaredDownloaded ? [new CloudflareTunnelProvider(cloudflaredBinPath)] : []),
-      new LocaltunnelProvider(),
-    ];
-    this.tunnelManager = new TunnelManager((message) => this.instanceManager.processMessage(message), { providers });
+
+    const providers: TunnelProvider[] = [];
+    for (const name of selectedProviders) {
+      if (name === 'localtunnel') providers.push(new LocaltunnelProvider());
+      else if (name === 'cloudflare' && isCloudflaredDownloaded)
+        providers.push(new CloudflareTunnelProvider(cloudflaredBinPath));
+      else if (name === 'frp' && isFrpDownloaded && frpOptions) providers.push(new FrpTunnelProvider(frpOptions));
+      else if (name === 'devtunnel') providers.push(new DevTunnelProvider());
+    }
+
+    this.tunnelManager = new TunnelManager(this.httpServerPort, { providers });
     this.tunnelManager.onUrlChanged(async (url) => {
-      await this.pushAgentInfoToTransporter({
-        tunnelUrl: url,
-      });
+      await this.pushAgentInfoToTransporter({ tunnelUrl: url });
     });
     await this.tunnelManager.start();
+    await this.clientKvStorage.setItem('tunnelState', { active: true, selectedProviders });
+    this.setMainWindowMenuVisibilityOnConnected();
+  }
+
+  async deactivateTunnel(): Promise<void> {
+    if (this.tunnelManager) {
+      await this.tunnelManager.stop();
+      this.tunnelManager = null;
+    }
+    await this.clientKvStorage.setItem('tunnelState', { active: false, selectedProviders: [] });
+    await this.pushAgentInfoToTransporter({ tunnelUrl: null });
+    this.setMainWindowMenuVisibilityOnConnected();
+  }
+
+  private async initTunnelFromStorage(): Promise<void> {
+    const state = (await this.clientKvStorage.getItem('tunnelState')) as {
+      active: boolean;
+      selectedProviders: string[];
+    } | null;
+    if (state?.active && state.selectedProviders?.length > 0) {
+      this.logger.info('restoring tunnel from storage', { providers: state.selectedProviders });
+      await this.activateTunnel(state.selectedProviders).catch((err) => {
+        this.logger.error('failed to restore tunnel', { err: err.message });
+      });
+    }
   }
 
   private async pushAgentMessageToTransporter(action: OutgoingTransportMessage['agent']['action'], payload: any) {
@@ -173,10 +231,19 @@ class Application implements HBRCApplication {
     await this.initElectronApp();
     await this.connectPuppeteerAfterAppReady();
     await this.instanceManager.init(this.browser!);
+    await this.initTunnelServer();
     await this.initOptions();
+    await this.initTunnelFromStorage();
     await updateUserAgents();
     this._isReady = true;
     this.events.onClientReady.emit();
+  }
+
+  private async initTunnelServer(): Promise<void> {
+    this.httpServerPort = await getPort({ host: '127.0.0.1', port: 55906 });
+    this.httpServer = new HttpServer((message) => this.instanceManager.processMessage(message));
+    await this.httpServer.listen(this.httpServerPort);
+    this.logger.info('http server ready', { port: this.httpServerPort });
   }
 
   private async setupPuppeteerBeforeAppReady(): Promise<void> {

@@ -6,7 +6,7 @@ const logger = createLogger('downloader');
 export type DownloadOptions = {
   title?: string;
   description?: string;
-  download: (onProgress: (percent: number) => void, signal: AbortSignal) => Promise<void>;
+  download: (onProgress: (percent: number, downloadedBytes: number, totalBytes: number) => void, signal: AbortSignal) => Promise<void>;
 };
 
 export async function downloadWithProgress(window: BrowserWindow, options: DownloadOptions): Promise<boolean> {
@@ -34,19 +34,22 @@ export async function downloadWithProgress(window: BrowserWindow, options: Downl
     const html = `<!DOCTYPE html><html><body style="margin:24px;font-family:system-ui;font-size:14px;overflow:hidden">
       <p style="margin:0 0 12px">${description}</p>
       <progress id="p" value="0" max="100" style="width:100%;height:20px"></progress>
-      <p id="pct" style="margin:8px 0 0;text-align:center">0%</p>
+      <p id="info" style="margin:8px 0 0;text-align:center;color:#555">0%</p>
     </body></html>`;
     await progressWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
     window.setProgressBar(0);
 
-    await download((percent) => {
+    const toMB = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+
+    await download((percent, downloadedBytes, totalBytes) => {
       window.setProgressBar(percent / 100);
       if (progressWindow && !progressWindow.isDestroyed()) {
         const pct = Math.round(percent);
+        const text = `${toMB(downloadedBytes)} MB / ${toMB(totalBytes)} MB (${pct}%)`;
         progressWindow.webContents
           .executeJavaScript(
-            `document.getElementById('p').value=${pct};document.getElementById('pct').textContent='${pct}%';`
+            `document.getElementById('p').value=${pct};document.getElementById('info').textContent=${JSON.stringify(text)};`
           )
           .catch(() => {});
       }

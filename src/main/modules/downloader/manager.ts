@@ -26,8 +26,8 @@ export class DownloadManager {
     return comp.getBinaryPath();
   }
 
-  async download(component: DownloadComponentType): Promise<boolean> {
-    const window = this.getWindow();
+  async download(component: DownloadComponentType, parentWindow?: BrowserWindow): Promise<boolean> {
+    const window = parentWindow ?? this.getWindow();
     if (!window) throw new Error('No main window available');
 
     const comp = downloadComponents[component];

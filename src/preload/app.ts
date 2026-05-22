@@ -9,6 +9,10 @@ import {
   ON_TRANSPORTER_STATUS_CHANGED,
   ON_INSTANCE_UPDATED,
   ON_INSTANCE_MESSAGE,
+  TUNNEL_GET_STATE,
+  TUNNEL_ACTIVATE,
+  TUNNEL_DEACTIVATE,
+  TUNNEL_DOWNLOAD,
 } from '@shared/constants/ipcs';
 import { MenuItemId } from '@shared/constants';
 import { PreloadEventKey, PreloadEventListener } from '@shared/event/preload';
@@ -70,4 +74,11 @@ contextBridge.exposeInMainWorld('applicationAPI', {
   emitMainEvent: (eventKey: MainEventKey, data: any) => {
     ipcRenderer.send('main-event', { eventKey, eventData: data });
   },
+});
+
+contextBridge.exposeInMainWorld('tunnelAPI', {
+  getState: () => ipcRenderer.invoke(TUNNEL_GET_STATE),
+  activate: (providers: string[]) => ipcRenderer.invoke(TUNNEL_ACTIVATE, providers),
+  deactivate: () => ipcRenderer.invoke(TUNNEL_DEACTIVATE),
+  download: (component: string) => ipcRenderer.invoke(TUNNEL_DOWNLOAD, component),
 });

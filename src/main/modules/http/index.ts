@@ -6,9 +6,9 @@ import { AppError } from '@shared/errors';
 
 export type MessageHandler = (message: IncomingTransportMessage) => Promise<any>;
 
-export class TunnelHttpServer {
+export class HttpServer {
   private fastify: FastifyInstance;
-  private logger = createLogger('tunnel.server');
+  private logger = createLogger('http.server');
 
   constructor(private readonly onMessage: MessageHandler) {
     this.fastify = Fastify({ logger: false });
@@ -19,23 +19,20 @@ export class TunnelHttpServer {
     this.fastify.post<{ Body: IncomingTransportMessage }>('/messages', async (request, reply) => {
       const message = request.body;
       const rqId = randomUUID();
-      this.logger.debug(`http request(${rqId}): ${JSON.stringify(message)}`);
+      this.logger.debug(`request(${rqId}): ${JSON.stringify(message)}`);
       try {
         const result = await this.onMessage(message);
         const resp = { success: true, data: result };
-        this.logger.debug(`http response(${rqId}): ${JSON.stringify(resp)}`);
+        this.logger.debug(`response(${rqId}): ${JSON.stringify(resp)}`);
         return reply.status(200).send(resp);
       } catch (err: any) {
-        this.logger.error(`http error(${rqId}): ${err.message}`);
+        this.logger.error(`error(${rqId}): ${err.message}`);
         const isAppError = err instanceof AppError;
         const statusCode = isAppError ? (err.httpStatusCode ?? 500) : 500;
         const code = isAppError ? err.code : 'unknown';
         return reply.status(statusCode).send({
           success: false,
-          error: {
-            code: code,
-            message: err.message,
-          },
+          error: { code, message: err.message },
         });
       }
     });
@@ -47,7 +44,7 @@ export class TunnelHttpServer {
 
   async listen(port: number): Promise<void> {
     await this.fastify.listen({ port, host: '127.0.0.1' });
-    this.logger.info('tunnel http server listening', { port });
+    this.logger.info('http server listening', { port });
   }
 
   async close(): Promise<void> {

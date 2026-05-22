@@ -4,6 +4,7 @@ import { PLATFORM } from '@shared/constants/main';
 import { GITHUB_REPOSITORY_URL, MenuItemId, ON_MENU_ITEM_CLICKED, ON_MENU_ITEM_PROCESSED } from '@shared/constants';
 import { HBRCApplication } from '@main/app/base';
 import { AboutUsWindow } from './windows/AboutUs';
+import { TunnelConfigWindow } from './windows/TunnelConfig';
 import { isDebugging } from './utils';
 
 export const initMenu = (app: App) => {
@@ -64,6 +65,13 @@ export const initMenuForMainWindow = (
       },
     },
     {
+      id: MenuItemId.TUNNEL,
+      label: 'Tunnel',
+      click: () => {
+        TunnelConfigWindow(mainWindow);
+      },
+    },
+    {
       label: 'Exit',
       click: () => app.quit(),
     },
@@ -116,27 +124,6 @@ export const initMenuForMainWindow = (
     ],
   };
 
-  const toolsMenu = {
-    id: MenuItemId.TOOLS,
-    label: 'Tools',
-    submenu: [
-      {
-        id: MenuItemId.DOWNLOAD_CLOUDFLARED,
-        label: 'Download Cloudflared',
-        click: async () => {
-          await mainApp.getDownloadManager().download('cloudflared');
-        },
-      },
-      {
-        id: MenuItemId.DOWNLOAD_FRPC,
-        label: 'Download frpc',
-        click: async () => {
-          await mainApp.getDownloadManager().download('frpc');
-        },
-      },
-    ],
-  };
-
   const helpMenu = {
     id: MenuItemId.HELP,
     label: 'Help',
@@ -158,7 +145,7 @@ export const initMenuForMainWindow = (
     ],
   };
 
-  const menuList = [serverMenu, manageMenu, toolsMenu, helpMenu];
+  const menuList = [serverMenu, manageMenu, helpMenu];
   let menuItems = menuList;
   if (excludeMenuItemIds) {
     menuItems = menuList.filter((menu) => !excludeMenuItemIds.includes(menu.id));

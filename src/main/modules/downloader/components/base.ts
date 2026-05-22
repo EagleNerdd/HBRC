@@ -64,7 +64,7 @@ export abstract class DownloadComponent {
 
   async download(
     onSuccess?: () => Promise<void>,
-    onProgress?: (percent: number) => void,
+    onProgress?: (percent: number, downloadedBytes: number, totalBytes: number) => void,
     signal?: AbortSignal
   ): Promise<void> {
     const info = this.getDownloadInfo();
@@ -95,7 +95,7 @@ export abstract class DownloadComponent {
 
       response.data.on('data', (chunk: Buffer) => {
         downloaded += chunk.length;
-        if (totalLength > 0) onProgress?.(Math.round((downloaded / totalLength) * 100));
+        if (totalLength > 0) onProgress?.(Math.round((downloaded / totalLength) * 100), downloaded, totalLength);
       });
       response.data.pipe(writer);
       writer.on('finish', () => {
