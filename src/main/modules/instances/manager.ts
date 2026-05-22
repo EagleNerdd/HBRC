@@ -1,4 +1,5 @@
 import { FSDB } from 'file-system-db';
+import { AppError, InvalidError, NotFoundError } from '@shared/errors';
 import { BrowserInstanceController } from './controllers';
 import { Browser } from 'puppeteer-core';
 import { BrowserInstance, BrowserInstanceStatus, BrowserInstanceType } from '@shared/types';
@@ -13,16 +14,19 @@ import { createInstanceController } from './controllers/factory';
 class BrowserInstanceManager {
   private db: FSDB;
   private channelControllerMap = new Map<string, BrowserInstanceController>();
-  private instanceRuntimeStateMap = new Map<string, {
-    status?: BrowserInstanceStatus,
-    headless?: boolean,
-  }>();
+  private instanceRuntimeStateMap = new Map<
+    string,
+    {
+      status?: BrowserInstanceStatus;
+      headless?: boolean;
+    }
+  >();
   private logger: Logger;
   private browser?: Browser;
 
   constructor(
     private readonly transporterMessaging: TransporterMessaging,
-    private readonly clientEvents: ClientEvents,
+    private readonly clientEvents: ClientEvents
   ) {
     this.logger = createLogger('browserInstanceManager');
   }
@@ -49,14 +53,30 @@ class BrowserInstanceManager {
 
   private async processTransportMessage(data: IncomingTransportMessage) {
     this.logger.debug('processTransportMessage', { data });
+    try {
+      await this.processMessage(data);
+    } catch (e: any) {
+      const isClientError = e instanceof AppError && (e.httpStatusCode ?? 500) < 500;
+      if (isClientError) {
+        this.logger.warn('processTransportMessage', { data, err: e.message });
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  async processMessage(data: IncomingTransportMessage): Promise<any> {
     if (data.controlInstance) {
       const { sessionId, instructions } = data.controlInstance;
       const controller = this.getController(sessionId);
-      if (controller) {
-        await controller.executeInstructions(instructions);
+      if (!controller) {
+        throw new NotFoundError(`Controller not found for session: ${sessionId}`);
       }
+      return await controller.executeInstructions(instructions);
     } else if (data.manageInstance) {
-      await this.handleManageInstanceMessage(data.manageInstance);
+      return await this.handleManageInstanceMessage(data.manageInstance);
+    } else {
+      throw new InvalidError('Invalid IncomingTransportMessage');
     }
   }
 
@@ -64,19 +84,16 @@ class BrowserInstanceManager {
     this.logger.debug('handleManageInstanceMessage', { data });
     const { action, payload } = data;
     if (action == 'updateInstance') {
-      if (!payload) {
-        return;
-      }
-      const { sessionId } = payload;
+      const { sessionId } = payload || {};
       if (!sessionId) {
-        return;
+        throw new InvalidError('sessionId is required');
       }
       const bi = await this.getInstance(sessionId);
       if (!bi) {
-        this.logger.error(`Instance not found: ${sessionId}`);
-      } else {
-        await this.updateInstance(sessionId, payload);
+        throw new NotFoundError(`Instance not found: ${sessionId}`);
       }
+      await this.updateInstance(sessionId, payload);
+      return data;
     }
   }
 
@@ -216,13 +233,16 @@ class BrowserInstanceManager {
       show?: boolean;
       hideOnClose?: boolean;
       identifier?: string;
-    },
+    }
   ) {
     if (!this.browser) {
       throw new Error('Browser not initialized');
     }
     const onClose = () => this.stopInstance(bi.sessionId);
-    const controller = await createInstanceController(this.browser, bi, this.transporterMessaging, this.clientEvents, { ...options, onClose });
+    const controller = await createInstanceController(this.browser, bi, this.transporterMessaging, this.clientEvents, {
+      ...options,
+      onClose,
+    });
     this.channelControllerMap.set(bi.sessionId, controller);
     await controller.init();
     this.emitInstanceUpdatedEvent(bi.sessionId, { status: 'Running' });
@@ -240,12 +260,12 @@ class BrowserInstanceManager {
       restart?: boolean;
       notifyToTransporter?: boolean;
       notifyToRenderer?: boolean;
-    },
+    }
   ) {
     const { restart = true, notifyToTransporter = false, notifyToRenderer = false } = options || {};
     const i = await this.getInstance(sessionId);
     if (!i) {
-      throw new Error(`Instance not found: ${sessionId}`);
+      throw new NotFoundError(`Instance not found: ${sessionId}`);
     }
     const newInstanceData = { ...i, ...bi };
     this.saveInstance(newInstanceData);

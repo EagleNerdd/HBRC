@@ -13,9 +13,7 @@ export const initMenu = (app: App) => {
   const macMenu: Array<Electron.MenuItemConstructorOptions | Electron.MenuItem> = [
     {
       label: app.name,
-      submenu: [
-        { label: 'Quit', accelerator: 'Command+Q', click: () => app.quit() },
-      ],
+      submenu: [{ label: 'Quit', accelerator: 'Command+Q', click: () => app.quit() }],
     },
     {
       label: 'Edit',
@@ -118,6 +116,27 @@ export const initMenuForMainWindow = (
     ],
   };
 
+  const toolsMenu = {
+    id: MenuItemId.TOOLS,
+    label: 'Tools',
+    submenu: [
+      {
+        id: MenuItemId.DOWNLOAD_CLOUDFLARED,
+        label: 'Download Cloudflared',
+        click: async () => {
+          await mainApp.getDownloadManager().download('cloudflared');
+        },
+      },
+      {
+        id: MenuItemId.DOWNLOAD_FRPC,
+        label: 'Download frpc',
+        click: async () => {
+          await mainApp.getDownloadManager().download('frpc');
+        },
+      },
+    ],
+  };
+
   const helpMenu = {
     id: MenuItemId.HELP,
     label: 'Help',
@@ -139,7 +158,7 @@ export const initMenuForMainWindow = (
     ],
   };
 
-  const menuList = [serverMenu, manageMenu, helpMenu];
+  const menuList = [serverMenu, manageMenu, toolsMenu, helpMenu];
   let menuItems = menuList;
   if (excludeMenuItemIds) {
     menuItems = menuList.filter((menu) => !excludeMenuItemIds.includes(menu.id));
