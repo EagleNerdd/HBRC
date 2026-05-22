@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import useApplication from '@renderer/hooks/useApplication';
 import { ApplicationAPI, ApplicationInfo } from '@shared/types';
 import QueryKeys from '@renderer/constants/queryKeys';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PreloadEventKey } from '@shared/event/preload';
 import { MenuItemId } from '@shared/constants';
 
@@ -15,6 +15,8 @@ type AppContextType = {
   applicationInfo: ApplicationInfo;
   isLoading: boolean;
   isOnboarded: boolean;
+  isApplyingOptions: boolean;
+  applyOptions: (options: any) => Promise<void>;
 };
 
 const AppContext = React.createContext<AppContextType>({
@@ -24,12 +26,16 @@ const AppContext = React.createContext<AppContextType>({
   applicationInfo: null,
   isLoading: true,
   isOnboarded: false,
+  isApplyingOptions: false,
+  applyOptions: async () => {},
 });
 
 export default function AppContextProvider({ children }) {
   const [messageApi, messageContextHolder] = message.useMessage();
   const [isApplicationReady, setIsApplicationReady] = React.useState(true);
+  const [isApplyingOptions, setIsApplyingOptions] = React.useState(false);
   const application = useApplication();
+  const queryClient = useQueryClient();
 
   const {
     data: applicationInfo,
@@ -39,8 +45,20 @@ export default function AppContextProvider({ children }) {
     queryKey: [QueryKeys.GET_APPLICATION_INFO],
     queryFn: application.getApplicationInfo,
     enabled: isApplicationReady,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const [isOnboarded, setIsOnboarded] = React.useState(false);
+
+  const applyOptions = async (options: any) => {
+    setIsApplyingOptions(true);
+    try {
+      await application.setApplicationOptions(options);
+      await queryClient.invalidateQueries({ queryKey: [QueryKeys.GET_APPLICATION_INFO] });
+    } finally {
+      setIsApplyingOptions(false);
+    }
+  };
 
   useEffect(() => {
     const apReadySubId = application.subscribeEvent(PreloadEventKey.APPLICATION_READY, () => {
@@ -81,7 +99,9 @@ export default function AppContextProvider({ children }) {
         application,
         applicationInfo,
         isLoading: !isApplicationReady || isFetchingAppInfo,
-        isOnboarded: isOnboarded,
+        isOnboarded: isOnboarded && !isApplyingOptions,
+        isApplyingOptions,
+        applyOptions,
       }}
     >
       {messageContextHolder}

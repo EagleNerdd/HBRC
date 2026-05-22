@@ -110,6 +110,7 @@ class Application implements HBRCApplication {
     // and when the user enters a new connection string.
     await this.initTunnelStateFromOptions();
     await this.initTunnelFromStorage();
+    console.log('@@@Init xong nè');
     this.setMainWindowMenuVisibilityOnConnected();
   }
 

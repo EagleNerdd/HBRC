@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useAppContext } from '@renderer/context/app';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import QueryKeys from '@renderer/constants/queryKeys';
-import { Button, Col, Flex, Input, Row, Layout, Modal, Space, List } from 'antd';
+import { Button, Card, Input, Modal, Space, List, Typography, Tag } from 'antd';
+import { LinkOutlined, WarningOutlined, CheckCircleFilled, EditOutlined } from '@ant-design/icons';
 import { urlSafeB64DecodeString, b64DecodeString } from '@shared/utils/crypto';
 
 const tunnelAPI = () => (window as any).tunnelAPI;
@@ -13,42 +12,42 @@ const DOWNLOAD_KEY: Record<string, string> = {
 };
 
 const decodeConnectionString = (connectionString: string) => {
-  let decodedConnectionString = '';
+  let decoded = '';
   try {
-    decodedConnectionString = b64DecodeString(connectionString);
-  } catch (e) {
-    decodedConnectionString = urlSafeB64DecodeString(connectionString);
+    decoded = b64DecodeString(connectionString);
+  } catch {
+    decoded = urlSafeB64DecodeString(connectionString);
   }
-  return JSON.parse(decodedConnectionString);
+  return JSON.parse(decoded);
+};
+
+const tryParse = (value: string) => {
+  try {
+    return decodeConnectionString(value);
+  } catch {
+    return null;
+  }
 };
 
 export default function OnboardConnection() {
   const [connectionString, setConnectionString] = React.useState('');
+  const [parsedOptions, setParsedOptions] = useState<any>(null);
   const [pendingOptions, setPendingOptions] = useState<any>(null);
   const [requiredProviders, setRequiredProviders] = useState<Array<{ name: string; label: string }>>([]);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const queryClient = useQueryClient();
-  const { messageApi, application, applicationInfo } = useAppContext();
+  const { messageApi, applicationInfo, applyOptions, isApplyingOptions } = useAppContext();
 
-  const setApplicationOptions = useMutation({
-    mutationFn: application.setApplicationOptions,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.GET_APPLICATION_INFO] });
-    },
-  });
-
-  const applyOptions = async (options: any) => {
-    await setApplicationOptions.mutateAsync(options);
+  const handleChange = (value: string) => {
+    setConnectionString(value);
+    setParsedOptions(tryParse(value));
   };
 
-  const handleConnectionString = async () => {
+  const handleConnect = async (options: any) => {
     try {
-      const appOptions = decodeConnectionString(connectionString);
-
       const requiredNames: string[] = [];
-      if (appOptions.tunnels?.frp) requiredNames.push('frp');
-      if (appOptions.tunnels?.cloudflare) requiredNames.push('cloudflare');
+      if (options.tunnels?.frp) requiredNames.push('frp');
+      if (options.tunnels?.cloudflare) requiredNames.push('cloudflare');
 
       if (requiredNames.length > 0) {
         const tunnelState = await tunnelAPI().getState();
@@ -57,14 +56,14 @@ export default function OnboardConnection() {
           .filter((p: any) => p && !p.isDownloaded);
 
         if (missing.length > 0) {
-          setPendingOptions(appOptions);
+          setPendingOptions(options);
           setRequiredProviders(missing);
           return;
         }
       }
 
-      await applyOptions(appOptions);
-    } catch (e) {
+      await applyOptions(options);
+    } catch {
       messageApi.error('Invalid connection string');
     }
   };
@@ -82,7 +81,7 @@ export default function OnboardConnection() {
       setPendingOptions(null);
       setRequiredProviders([]);
       await applyOptions(options);
-    } catch (e) {
+    } catch {
       messageApi.error('Download failed');
     } finally {
       setIsDownloading(false);
@@ -94,37 +93,118 @@ export default function OnboardConnection() {
     setRequiredProviders([]);
   };
 
+
   return (
     <>
-      <Flex>
-        <Layout.Content style={{ textAlign: 'center', alignContent: 'center', alignItems: 'center' }}>
-          <Col span={24} style={{ textAlign: 'center' }}>
-            <Row justify={'center'}>
-              <h1 style={{ fontSize: 50 }}>HBRC</h1>
-            </Row>
-            <Row justify={'center'} style={{ marginTop: -25 }}>
-              <span>Version: {applicationInfo.version}</span>
-            </Row>
-            <Row justify={'center'} style={{ marginTop: 20 }}>
-              <Col span={12}>
-                <Input.TextArea
-                  value={connectionString}
-                  onChange={(e) => {
-                    setConnectionString(e.target.value);
-                  }}
-                  style={{ height: 150 }}
-                  placeholder="Input your connection string here"
-                />
-              </Col>
-            </Row>
-            <Row justify={'center'} style={{ marginTop: 20 }}>
-              <Button size="large" type="primary" disabled={!connectionString} onClick={handleConnectionString}>
-                Connect
-              </Button>
-            </Row>
-          </Col>
-        </Layout.Content>
-      </Flex>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #f0f2f5 0%, #e6f0ff 100%)',
+          overflow: 'auto',
+        }}
+      >
+        <Card
+          style={{
+            width: 480,
+            borderRadius: 16,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+            border: 'none',
+          }}
+          styles={{ body: { padding: '40px 40px 36px' } }}
+        >
+          {/* Logo / Brand */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
+                marginBottom: 16,
+                boxShadow: '0 4px 16px rgba(22,119,255,0.3)',
+              }}
+            >
+              <LinkOutlined style={{ fontSize: 28, color: '#fff' }} />
+            </div>
+            <Typography.Title level={2} style={{ margin: 0, letterSpacing: -0.5 }}>
+              HBRC
+            </Typography.Title>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              Headless Browser Remote Controller &nbsp;
+              <Tag bordered={false} color="blue" style={{ fontSize: 11 }}>
+                v{applicationInfo.version}
+              </Tag>
+            </Typography.Text>
+          </div>
+
+          {/* Input or parsed preview */}
+          <div style={{ marginBottom: 20 }}>
+            <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>
+              Connection String
+            </Typography.Text>
+
+            {parsedOptions ? (
+              <div
+                style={{
+                  borderRadius: 8,
+                  border: '1px solid #b7eb8f',
+                  background: '#f6ffed',
+                  padding: '12px 16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <CheckCircleFilled style={{ color: '#52c41a', fontSize: 15 }} />
+                      <Typography.Text strong style={{ fontSize: 14 }}>
+                        {parsedOptions.serverName ?? 'Unknown server'}
+                      </Typography.Text>
+                    </div>
+                  </div>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      setParsedOptions(null);
+                    }}
+                    style={{ color: '#8c8c8c', flexShrink: 0 }}
+                  >
+                    Change
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Input.TextArea
+                value={connectionString}
+                onChange={(e) => handleChange(e.target.value)}
+                placeholder="Paste your connection string here..."
+                autoSize={{ minRows: 4, maxRows: 6 }}
+                style={{ borderRadius: 8, fontFamily: 'monospace', fontSize: 12, resize: 'none' }}
+              />
+            )}
+          </div>
+
+          <Button
+            type="primary"
+            size="large"
+            block
+            disabled={!parsedOptions}
+            loading={isApplyingOptions}
+            onClick={() => handleConnect(parsedOptions)}
+            style={{ borderRadius: 8, height: 44, fontWeight: 600 }}
+          >
+            {isApplyingOptions ? 'Connecting...' : 'Connect'}
+          </Button>
+        </Card>
+      </div>
 
       <Modal
         title="Download Required"
@@ -161,9 +241,10 @@ export default function OnboardConnection() {
               Cancel
             </Button>
           </Space>
-          <p style={{ margin: 0, fontSize: 12, color: '#faad14' }}>
-            ⚠ Connecting without downloading the required providers may cause tunneling to not work as expected.
-          </p>
+          <Typography.Text style={{ fontSize: 12, color: '#faad14' }}>
+            <WarningOutlined style={{ marginRight: 6 }} />
+            Connecting without downloading the required providers may cause tunneling to not work as expected.
+          </Typography.Text>
         </Space>
       </Modal>
     </>

@@ -7,8 +7,8 @@ import BrowserInstanceManagerComponent from '@renderer/components/instance/Brows
 import OnboardConnection from '@renderer/components/OnboardConnection';
 
 export function MainScreen() {
-  const { isLoading, isOnboarded, applicationInfo } = useAppContext();
-  if (isLoading) {
+  const { isLoading, isOnboarded, isApplyingOptions, applicationInfo } = useAppContext();
+  if (isLoading && !isApplyingOptions) {
     return <FullScreenSpinner />;
   }
   if (!isOnboarded) {
