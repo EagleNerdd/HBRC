@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, Badge, Space, Tag, Typography, Popconfirm } from 'antd';
-import { ApplicationInfo } from '@shared/types';
+import { ApplicationInfo, TunnelState } from '@shared/types';
 import useApplication from '@renderer/hooks/useApplication';
 import { MainEventKey } from '@shared/event/main';
 import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 import { DisconnectOutlined } from '@ant-design/icons';
 import iconSvg from '../../../assets/icon.svg';
+import { PreloadEventKey } from '@shared/event/preload';
+
+const tunnelAPI = () => (window as any).tunnelAPI;
+const applicationAPI = () => (window as any).applicationAPI;
 
 const STATUS_CONFIG: Record<string, { badge: 'success' | 'processing' | 'error'; label: string }> = {
   connected: { badge: 'success', label: 'Connected' },
@@ -18,6 +22,18 @@ export default function ServerInfo({ applicationInfo }: { applicationInfo: Appli
   const { isDebug } = useApplicationInfo();
 
   const status = STATUS_CONFIG[transporterStatus] ?? { badge: 'error', label: transporterStatus };
+
+  const [tunnelUrl, setTunnelUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    tunnelAPI()
+      .getState()
+      .then((s: TunnelState) => setTunnelUrl(s.isActive ? s.currentUrl : null));
+    const id = applicationAPI().subscribeEvent(PreloadEventKey.TUNNEL_URL_CHANGED, (url: string | null) => {
+      setTunnelUrl(url);
+    });
+    return () => applicationAPI().unsubscribeEvent(id);
+  }, []);
 
   return (
     <div
@@ -54,6 +70,7 @@ export default function ServerInfo({ applicationInfo }: { applicationInfo: Appli
       {/* Right: status + debug + disconnect */}
       <Space size={10} align="center">
         <Badge status={status.badge} text={status.label} />
+        {tunnelUrl && <Badge status="success" text="Tunnel running" />}
         {isDebug && (
           <Tag color="warning" bordered={false}>
             Debug

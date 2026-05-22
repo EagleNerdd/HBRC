@@ -4,6 +4,7 @@ export enum PreloadEventKey {
   TRANSPORTER_STATUS_CHANGED = 'TRANSPORTER_STATUS_CHANGED',
   INSTANCE_UPDATED = 'INSTANCE_UPDATED',
   INSTANCE_MESSAGE = 'INSTANCE_MESSAGE',
+  TUNNEL_URL_CHANGED = 'TUNNEL_URL_CHANGED',
 }
 
 export type PreloadEventListener<D extends any> = (data?: D) => void;

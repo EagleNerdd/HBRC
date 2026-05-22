@@ -30,6 +30,7 @@ import {
   ON_INSTANCE_UPDATED,
   ON_SERVER_DISCONNECTED,
   ON_TRANSPORTER_STATUS_CHANGED,
+  ON_TUNNEL_URL_CHANGED,
 } from '@shared/constants';
 import { getComputerName } from '@shared/utils/node';
 import { initMenuForMainWindow } from '../menu';
@@ -185,6 +186,7 @@ class Application implements HBRCApplication {
     this.tunnelManager = new TunnelManager(this.httpServerPort, { providers });
     this.tunnelManager.onUrlChanged(async (url) => {
       await this.pushAgentInfoToTransporter({ tunnelUrl: url });
+      this.sendMainWindowEvent(ON_TUNNEL_URL_CHANGED, url);
     });
     await this.tunnelManager.start();
     await this.clientKvStorage.setItem('tunnelState', { active: true, selectedProviders });
@@ -198,6 +200,7 @@ class Application implements HBRCApplication {
     }
     await this.clientKvStorage.setItem('tunnelState', { active: false, selectedProviders: [] });
     await this.pushAgentInfoToTransporter({ tunnelUrl: null });
+    this.sendMainWindowEvent(ON_TUNNEL_URL_CHANGED, null);
     this.setMainWindowMenuVisibilityOnConnected();
   }
 

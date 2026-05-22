@@ -14,6 +14,7 @@ import {
   TUNNEL_ACTIVATE,
   TUNNEL_DEACTIVATE,
   TUNNEL_DOWNLOAD,
+  ON_TUNNEL_URL_CHANGED,
 } from '@shared/constants/ipcs';
 import { MenuItemId } from '@shared/constants';
 import { PreloadEventKey, PreloadEventListener } from '@shared/event/preload';
@@ -49,6 +50,10 @@ ipcRenderer.on(ON_INSTANCE_UPDATED, (_, data: any) => {
 
 ipcRenderer.on(ON_INSTANCE_MESSAGE, (_, data: any) => {
   preloadEvents.emit(PreloadEventKey.INSTANCE_MESSAGE, data);
+});
+
+ipcRenderer.on(ON_TUNNEL_URL_CHANGED, (_, url: string | null) => {
+  preloadEvents.emit(PreloadEventKey.TUNNEL_URL_CHANGED, url);
 });
 
 contextBridge.exposeInMainWorld('applicationAPI', {
