@@ -8,6 +8,7 @@ export enum MenuItemId {
   MANAGE = 'manage',
   TOOLS = 'tools',
   DOWNLOAD_CLOUDFLARED = 'download-cloudflared',
+  DOWNLOAD_FRPC = 'download-frpc',
   HELP = 'help',
   ABOUT_US = 'about-us',
   DOCUMENT = 'document',

@@ -127,6 +127,13 @@ export const initMenuForMainWindow = (
           await mainApp.getDownloadManager().download('cloudflared');
         },
       },
+      {
+        id: MenuItemId.DOWNLOAD_FRPC,
+        label: 'Download frpc',
+        click: async () => {
+          await mainApp.getDownloadManager().download('frpc');
+        },
+      },
     ],
   };
 

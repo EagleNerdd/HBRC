@@ -11,7 +11,8 @@ const execFileAsync = promisify(execFile);
 export type DownloadInfo = {
   url: string;
   filename: string;
-  isTarball: boolean;
+  isTarball?: boolean;
+  isZip?: boolean;
 };
 
 export abstract class DownloadComponent {
@@ -43,16 +44,35 @@ export abstract class DownloadComponent {
     }
   }
 
+  protected async extractArchive(downloadPath: string, binDir: string, info: DownloadInfo): Promise<void> {
+    if (info.isTarball) {
+      await execFileAsync('tar', ['-xzf', downloadPath, '-C', binDir]);
+    } else if (info.isZip) {
+      if (process.platform === 'win32') {
+        await execFileAsync('powershell', [
+          '-NoProfile', '-Command',
+          `Expand-Archive -LiteralPath '${downloadPath}' -DestinationPath '${binDir}' -Force`,
+        ]);
+      } else {
+        await execFileAsync('unzip', ['-q', '-o', downloadPath, '-d', binDir]);
+      }
+    }
+    await fs.promises.unlink(downloadPath).catch(() => {});
+  }
+
+  protected async onAfterExtract(_binDir: string, _info: DownloadInfo): Promise<void> {}
+
   async download(
     onSuccess?: () => Promise<void>,
     onProgress?: (percent: number) => void,
     signal?: AbortSignal
   ): Promise<void> {
-    const { url, filename, isTarball } = this.getDownloadInfo();
+    const info = this.getDownloadInfo();
+    const { url, filename, isTarball, isZip } = info;
     const binDir = this.getBinDir();
     await fs.promises.mkdir(binDir, { recursive: true });
 
-    const tmpFilename = isTarball ? path.basename(url) : filename;
+    const tmpFilename = isTarball || isZip ? path.basename(url) : filename;
     const downloadPath = path.join(binDir, tmpFilename);
     const binPath = path.join(binDir, filename);
 
@@ -88,18 +108,16 @@ export abstract class DownloadComponent {
       });
     });
 
-    if (isTarball) {
-      await execFileAsync('tar', ['-xzf', downloadPath, '-C', binDir]);
-      await fs.promises.unlink(downloadPath);
+    if (isTarball || isZip) {
+      await this.extractArchive(downloadPath, binDir, info);
+      await this.onAfterExtract(binDir, info);
     }
 
     if (process.platform !== 'win32') {
-      await fs.promises.chmod(binPath, 0o755);
+      await fs.promises.chmod(binPath, 0o755).catch(() => {});
     }
 
     this.logger.info('downloaded successfully', { binPath });
-    if (onSuccess) {
-      await onSuccess();
-    }
+    if (onSuccess) await onSuccess();
   }
 }

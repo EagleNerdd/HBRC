@@ -12,7 +12,13 @@ import { MainWindow } from '../windows';
 import { registerIPCs } from '../ipcs';
 import { TransporterManager, DefaultTransporterManager, TransporterMessaging } from '@main/modules/transporters';
 import { OutgoingTransportMessage } from '@shared/types';
-import { TunnelManager, LocaltunnelProvider, DevTunnelProvider, CloudflareTunnelProvider } from '@main/modules/tunnel';
+import {
+  TunnelManager,
+  LocaltunnelProvider,
+  DevTunnelProvider,
+  CloudflareTunnelProvider,
+  FrpTunnelProvider,
+} from '@main/modules/tunnel';
 import { DownloadManager } from '@main/modules/downloader';
 import {
   ENVIRONMENT,
@@ -127,8 +133,11 @@ class Application implements HBRCApplication {
   private async initTunnel() {
     const isCloudflaredDownloaded = await this.downloadManager.isDownloaded('cloudflared');
     const cloudflaredBinPath = await this.downloadManager.getBinaryPath('cloudflared');
+    const frpOptions = this.options.tunnels?.frp;
+    const isFrpDownloaded = await this.downloadManager.isDownloaded('frpc');
     const providers = [
       ...(ENVIRONMENT.IS_DEV ? [new DevTunnelProvider()] : []),
+      ...(frpOptions && isFrpDownloaded ? [new FrpTunnelProvider(frpOptions)] : []),
       ...(isCloudflaredDownloaded ? [new CloudflareTunnelProvider(cloudflaredBinPath)] : []),
       new LocaltunnelProvider(),
     ];

@@ -1,10 +1,12 @@
 import { app, dialog, BrowserWindow } from 'electron';
 import { CloudflaredDownloadComponent } from './components/cloudflared';
+import { FrpDownloadComponent } from './components/frp';
 import { downloadWithProgress } from './progress';
 import { DownloadComponent } from './components/base';
 
 const downloadComponents = {
   cloudflared: new CloudflaredDownloadComponent(),
+  frpc: new FrpDownloadComponent(),
 };
 
 type DownloadComponentType = keyof typeof downloadComponents;
