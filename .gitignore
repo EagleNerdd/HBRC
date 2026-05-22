@@ -4,3 +4,5 @@
 .env
 /dist
 .agents
+/localNotes
+.env.local

@@ -10,18 +10,20 @@ import puppeteer, { Browser } from 'puppeteer-core';
 import { makeAppSetup } from '../factories';
 import { MainWindow } from '../windows';
 import { registerIPCs } from '../ipcs';
+import { TransporterManager, DefaultTransporterManager, TransporterMessaging } from '@main/modules/transporters';
+import { OutgoingTransportMessage } from '@shared/types';
+import { TunnelManager, LocaltunnelProvider, DevTunnelProvider } from '@main/modules/tunnel';
 import {
+  ENVIRONMENT,
+  MenuItemId,
   ON_APPLICATION_READY,
   ON_INSTANCE_MESSAGE,
   ON_INSTANCE_UPDATED,
   ON_SERVER_DISCONNECTED,
   ON_TRANSPORTER_STATUS_CHANGED,
-} from '@shared/constants/ipcs';
-import { TransporterManager, DefaultTransporterManager, TransporterMessaging } from '@main/modules/transporters';
-import { OutgoingTransportMessage } from '@shared/types/message';
+} from '@shared/constants';
 import { getComputerName } from '@shared/utils/node';
 import { initMenuForMainWindow } from '../menu';
-import { MenuItemId } from '@shared/constants';
 import { HBRCAppInfo, HBRCApplication, HBRCAppOptions } from './base';
 import { createLogger, Logger, setLoggerLevel } from '@main/logging';
 import { isDebugging, setDebugging, updateUserAgents } from '@main/utils';
@@ -33,12 +35,16 @@ class Application implements HBRCApplication {
   private instanceManager: BrowserInstanceManager;
   private transporterManager: TransporterManager;
   private transporterMessaging: TransporterMessaging;
+  private tunnelManager: TunnelManager;
   private browser?: Browser;
   private _isReady = false;
   private agentName: string;
   private logger: Logger;
   private mainWindow?: BrowserWindow;
-  constructor(private readonly eApp: ElectronApp, private options: HBRCAppOptions) {
+  constructor(
+    private readonly eApp: ElectronApp,
+    private options: HBRCAppOptions
+  ) {
     this.logger = createLogger('app');
     this.kvStorage = new ElectronKvStorage();
     this.clientKvStorage = new ClientKvStorage(this.kvStorage);
@@ -50,7 +56,7 @@ class Application implements HBRCApplication {
     this.agentName = getComputerName();
     this.events.onTransporterStatusChanged.listen(async (status) => {
       if (status == 'connected') {
-        await this.pushAgentMessageToTransporter('info', { name: this.agentName });
+        await this.pushAgentInfoToTransporter();
         await this.instanceManager.pushListInstanceMessage();
       }
     });
@@ -70,10 +76,21 @@ class Application implements HBRCApplication {
     };
   }
 
+  async pushAgentInfoToTransporter(extra?: { tunnelUrl?: string }) {
+    const info = {
+      version: app.getVersion(),
+      name: this.agentName,
+      tunnelUrl: this.tunnelManager.getCurrentUrl(),
+      ...(extra || {}),
+    };
+    await this.pushAgentMessageToTransporter('info', info);
+  }
+
   async setOptions(options: HBRCAppOptions, save = true) {
     this.options = { ...this.options, ...options };
     this.logger.debug('setOptions', { options });
     await this.initTransporters();
+    await this.initTunnel(); // Init tunnel must call after transporter because it have to send tunnel url
     if (save) {
       await this.clientKvStorage.setItem('applicationOptions', this.options);
     }
@@ -102,6 +119,17 @@ class Application implements HBRCApplication {
       this.transporterManager.createTransporter(name, transporter.type, transporter.options);
     }
     await this.transporterManager.init();
+  }
+
+  private async initTunnel() {
+    const providers = [...(ENVIRONMENT.IS_DEV ? [new DevTunnelProvider()] : []), new LocaltunnelProvider()];
+    this.tunnelManager = new TunnelManager((message) => this.instanceManager.processMessage(message), { providers });
+    this.tunnelManager.onUrlChanged(async (url) => {
+      await this.pushAgentInfoToTransporter({
+        tunnelUrl: url,
+      });
+    });
+    await this.tunnelManager.start();
   }
 
   private async pushAgentMessageToTransporter(action: OutgoingTransportMessage['agent']['action'], payload: any) {
@@ -140,6 +168,13 @@ class Application implements HBRCApplication {
     const actualPort = await getPort({ host: '127.0.0.1', port: 9219 });
     this.eApp.commandLine.appendSwitch('remote-debugging-port', `${actualPort}`);
     this.eApp.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1');
+    if (ENVIRONMENT.IS_LOCAL || ENVIRONMENT.IS_DEV) {
+      // Alow call to localhost
+      this.eApp.commandLine.appendSwitch(
+        'disable-features',
+        'BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults'
+      );
+    }
   }
 
   private async connectPuppeteerAfterAppReady(): Promise<void> {
@@ -212,7 +247,6 @@ class Application implements HBRCApplication {
     }
     return this.instanceManager;
   }
-
 
   setDebugMode(isEnableDebug: boolean): void {
     const _isDebugging = isDebugging();
