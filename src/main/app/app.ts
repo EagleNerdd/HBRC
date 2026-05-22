@@ -12,7 +12,8 @@ import { MainWindow } from '../windows';
 import { registerIPCs } from '../ipcs';
 import { TransporterManager, DefaultTransporterManager, TransporterMessaging } from '@main/modules/transporters';
 import { OutgoingTransportMessage } from '@shared/types';
-import { TunnelManager, LocaltunnelProvider, DevTunnelProvider } from '@main/modules/tunnel';
+import { TunnelManager, LocaltunnelProvider, DevTunnelProvider, CloudflareTunnelProvider } from '@main/modules/tunnel';
+import { DownloadManager } from '@main/modules/downloader';
 import {
   ENVIRONMENT,
   MenuItemId,
@@ -36,6 +37,7 @@ class Application implements HBRCApplication {
   private transporterManager: TransporterManager;
   private transporterMessaging: TransporterMessaging;
   private tunnelManager: TunnelManager;
+  private downloadManager: DownloadManager;
   private browser?: Browser;
   private _isReady = false;
   private agentName: string;
@@ -53,6 +55,7 @@ class Application implements HBRCApplication {
     this.transporterManager = transporterManager;
     this.transporterMessaging = transporterManager;
     this.instanceManager = new BrowserInstanceManager(this.transporterMessaging, this.events);
+    this.downloadManager = new DownloadManager(() => this.mainWindow);
     this.agentName = getComputerName();
     this.events.onTransporterStatusChanged.listen(async (status) => {
       if (status == 'connected') {
@@ -122,7 +125,13 @@ class Application implements HBRCApplication {
   }
 
   private async initTunnel() {
-    const providers = [...(ENVIRONMENT.IS_DEV ? [new DevTunnelProvider()] : []), new LocaltunnelProvider()];
+    const isCloudflaredDownloaded = await this.downloadManager.isDownloaded('cloudflared');
+    const cloudflaredBinPath = await this.downloadManager.getBinaryPath('cloudflared');
+    const providers = [
+      ...(ENVIRONMENT.IS_DEV ? [new DevTunnelProvider()] : []),
+      ...(isCloudflaredDownloaded ? [new CloudflareTunnelProvider(cloudflaredBinPath)] : []),
+      new LocaltunnelProvider(),
+    ];
     this.tunnelManager = new TunnelManager((message) => this.instanceManager.processMessage(message), { providers });
     this.tunnelManager.onUrlChanged(async (url) => {
       await this.pushAgentInfoToTransporter({
@@ -269,6 +278,10 @@ class Application implements HBRCApplication {
       setLoggerLevel('debug');
     }
     setDebugging(storageDebug);
+  }
+
+  getDownloadManager(): DownloadManager {
+    return this.downloadManager;
   }
 }
 

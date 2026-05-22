@@ -1,6 +1,7 @@
 import { TransportersOptions } from '@main/modules/transporters';
 import { TransporterStatus } from '@shared/types/transporter';
 import BrowserInstanceManager from '@main/modules/instances/manager';
+import { DownloadManager } from '@main/modules/downloader';
 
 export type HBRCAppOptions = {
   agentId?: string;
@@ -21,6 +22,7 @@ export interface HBRCApplication {
   getAppInfo(): Promise<HBRCAppInfo>;
   setOptions(options: HBRCAppOptions): Promise<void>;
   getInstanceManager(): BrowserInstanceManager;
+  getDownloadManager(): DownloadManager;
   disconnectServer(): Promise<void>;
   setDebugMode(isDebug: boolean): void;
 }

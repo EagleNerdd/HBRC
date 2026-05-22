@@ -6,6 +6,8 @@ export enum MenuItemId {
   START_ALL_INSTANCES = 'start-all-instances',
   STOP_ALL_INSTANCES = 'stop-all-instances',
   MANAGE = 'manage',
+  TOOLS = 'tools',
+  DOWNLOAD_CLOUDFLARED = 'download-cloudflared',
   HELP = 'help',
   ABOUT_US = 'about-us',
   DOCUMENT = 'document',
