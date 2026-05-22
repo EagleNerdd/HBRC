@@ -1,6 +1,6 @@
 {
   "name": "headless-browser-remote-controller",
-  "version": "0.0.2-alpha.2",
+  "version": "0.0.3-alpha.1",
   "description": "Headless Browser Remote Controller is an open-source project designed to remotely control browsers for automation testing and other purposes.",
   "main": "./out/main/index.js",
   "repository": "https://github.com/EagleNerdd/HBRC/",
