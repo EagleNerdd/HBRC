@@ -3,6 +3,7 @@ import { TransporterStatus } from '@shared/types/transporter';
 import BrowserInstanceManager from '@main/modules/instances/manager';
 import { DownloadManager } from '@main/modules/downloader';
 import { FrpTunnelOptions } from '@main/modules/tunnel';
+import { TunnelState } from '@shared/types';
 
 export type HBRCAppOptions = {
   agentId?: string;
@@ -10,6 +11,7 @@ export type HBRCAppOptions = {
   transporters?: TransportersOptions;
   tunnels?: {
     frp?: FrpTunnelOptions;
+    cloudflare?: any;
   };
 };
 
@@ -29,4 +31,8 @@ export interface HBRCApplication {
   getDownloadManager(): DownloadManager;
   disconnectServer(): Promise<void>;
   setDebugMode(isDebug: boolean): void;
+  isTunnelActive(): boolean;
+  getTunnelState(): Promise<TunnelState>;
+  activateTunnel(selectedProviders: string[]): Promise<void>;
+  deactivateTunnel(): Promise<void>;
 }

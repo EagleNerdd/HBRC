@@ -1,7 +1,7 @@
 import React from 'react';
 import { Router, Route } from 'electron-router-dom';
 
-import { MainScreen } from './screens';
+import { MainScreen, TunnelConfigScreen } from './screens';
 import { DebugScreen } from './screens/Debug';
 import { AboutUsScreen } from './screens/AboutUs';
 
@@ -16,6 +16,7 @@ export function AppRoutes() {
       }
       aboutUs={<Route path="/" element={<AboutUsScreen />} />}
       debug={<Route path="/" element={<DebugScreen />} />}
+      tunnelConfig={<Route path="/" element={<TunnelConfigScreen />} />}
     />
   );
 }

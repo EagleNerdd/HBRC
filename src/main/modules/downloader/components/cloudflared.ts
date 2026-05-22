@@ -2,7 +2,7 @@ import { DownloadComponent, DownloadInfo } from './base';
 
 export class CloudflaredDownloadComponent extends DownloadComponent {
   constructor() {
-    super('cloudflared', true);
+    super('cloudflared', false);
   }
 
   protected getDownloadInfo(): DownloadInfo {

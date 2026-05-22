@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
 import {
   GET_INSTANCES,
   ADD_INSTANCE,
@@ -11,6 +11,10 @@ import {
   GET_APPLICATION_INFO,
   START_INSTANCE,
   STOP_INSTANCE,
+  TUNNEL_GET_STATE,
+  TUNNEL_ACTIVATE,
+  TUNNEL_DEACTIVATE,
+  TUNNEL_DOWNLOAD,
 } from '@shared/constants/ipcs';
 import { Application } from '../app';
 import { MainEventKey } from '@shared/event/main';
@@ -63,6 +67,24 @@ export const registerIPCs = (app: Application) => {
 
   ipcMain.handle(GET_APPLICATION_INFO, async (...args) => {
     return await app.getAppInfo();
+  });
+
+  // Tunnel
+  ipcMain.handle(TUNNEL_GET_STATE, async () => {
+    return await app.getTunnelState();
+  });
+
+  ipcMain.handle(TUNNEL_ACTIVATE, async (_, selectedProviders: string[]) => {
+    await app.activateTunnel(selectedProviders);
+  });
+
+  ipcMain.handle(TUNNEL_DEACTIVATE, async () => {
+    await app.deactivateTunnel();
+  });
+
+  ipcMain.handle(TUNNEL_DOWNLOAD, async (event, component: string) => {
+    const tunnelWindow = BrowserWindow.fromWebContents(event.sender);
+    return await app.getDownloadManager().download(component as any, tunnelWindow);
   });
 
   // Events
