@@ -1,11 +1,18 @@
 import path from 'path';
 
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import { WindowProps } from '@shared/types';
 import { createFileRoute, createURLRoute } from 'electron-router-dom';
 import { ENVIRONMENT } from '@shared/constants';
 
 const singleInstanceMap = new Map<string, BrowserWindow>();
+
+function getAppIcon() {
+  const appPath = app.getAppPath();
+  if (process.platform === 'win32') return path.join(appPath, 'assets/icon.ico');
+  if (process.platform === 'darwin') return path.join(appPath, 'assets/hbrc_icon.icns');
+  return path.join(appPath, 'assets/icon.png');
+}
 
 export function createWindow({ id, isSingleInstance, keepOpen, ...settings }: WindowProps) {
   if (isSingleInstance && singleInstanceMap.has(id)) {
@@ -13,7 +20,7 @@ export function createWindow({ id, isSingleInstance, keepOpen, ...settings }: Wi
     window.show();
     return window;
   }
-  const window = new BrowserWindow(settings);
+  const window = new BrowserWindow({ icon: getAppIcon(), ...settings });
 
   const devServerURL = createURLRoute(process.env['ELECTRON_RENDERER_URL']!, id);
 

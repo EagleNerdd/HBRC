@@ -9,6 +9,7 @@ import {
   SET_APPLICATION_OPTIONS,
   CALL_INSTANCE_FUNCTION,
   GET_APPLICATION_INFO,
+  DISCONNECT_SERVER,
   START_INSTANCE,
   STOP_INSTANCE,
   TUNNEL_GET_STATE,
@@ -67,6 +68,10 @@ export const registerIPCs = (app: Application) => {
 
   ipcMain.handle(GET_APPLICATION_INFO, async (...args) => {
     return await app.getAppInfo();
+  });
+
+  ipcMain.handle(DISCONNECT_SERVER, async () => {
+    await app.disconnectServer();
   });
 
   // Tunnel

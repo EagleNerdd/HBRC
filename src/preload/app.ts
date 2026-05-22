@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   GET_APPLICATION_INFO,
   SET_APPLICATION_OPTIONS,
+  DISCONNECT_SERVER,
   ON_MENU_ITEM_CLICKED,
   ON_MENU_ITEM_PROCESSED,
   ON_APPLICATION_READY,
@@ -53,6 +54,7 @@ ipcRenderer.on(ON_INSTANCE_MESSAGE, (_, data: any) => {
 contextBridge.exposeInMainWorld('applicationAPI', {
   setApplicationOptions: (options: any) => ipcRenderer.invoke(SET_APPLICATION_OPTIONS, options),
   getApplicationInfo: () => ipcRenderer.invoke(GET_APPLICATION_INFO),
+  disconnectServer: () => ipcRenderer.invoke(DISCONNECT_SERVER),
   subscribeEvent: <D>(eventKey: PreloadEventKey, callback: PreloadEventListener<D>) => {
     return preloadEvents.subscribe(eventKey, callback);
   },

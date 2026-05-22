@@ -6,6 +6,7 @@ import { MainEventKey } from '@shared/event/main';
 export type ApplicationAPI = {
   setApplicationOptions: (options: any) => Promise<any>;
   getApplicationInfo: () => Promise<any>;
+  disconnectServer: () => Promise<void>;
   onMenuItemClick: (menuItemId: MenuItemId, callback: PreloadEventListener<any>) => number;
   onMenuItemProcessed: (menuItemId: MenuItemId, callback: PreloadEventListener<any>) => number;
   subscribeEvent: (eventKey: PreloadEventKey, callback: PreloadEventListener<any>) => number;

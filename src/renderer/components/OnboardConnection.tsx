@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAppContext } from '@renderer/context/app';
 import { Button, Card, Input, Modal, Space, List, Typography, Tag } from 'antd';
-import { LinkOutlined, WarningOutlined, CheckCircleFilled, EditOutlined } from '@ant-design/icons';
+import { WarningOutlined, CheckCircleFilled, EditOutlined } from '@ant-design/icons';
+import iconSvg from '../../../assets/icon.svg';
 import { urlSafeB64DecodeString, b64DecodeString } from '@shared/utils/crypto';
 
 const tunnelAPI = () => (window as any).tunnelAPI;
@@ -93,7 +94,6 @@ export default function OnboardConnection() {
     setRequiredProviders([]);
   };
 
-
   return (
     <>
       <div
@@ -118,21 +118,7 @@ export default function OnboardConnection() {
         >
           {/* Logo / Brand */}
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
-                marginBottom: 16,
-                boxShadow: '0 4px 16px rgba(22,119,255,0.3)',
-              }}
-            >
-              <LinkOutlined style={{ fontSize: 28, color: '#fff' }} />
-            </div>
+            <img src={iconSvg} width={128} height={128} />
             <Typography.Title level={2} style={{ margin: 0, letterSpacing: -0.5 }}>
               HBRC
             </Typography.Title>
