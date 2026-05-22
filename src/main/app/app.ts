@@ -106,6 +106,10 @@ class Application implements HBRCApplication {
     if (save) {
       await this.clientKvStorage.setItem('applicationOptions', this.options);
     }
+    // Tunnel init is driven from here so it runs both on app startup (via initOptions)
+    // and when the user enters a new connection string.
+    await this.initTunnelStateFromOptions();
+    await this.initTunnelFromStorage();
     this.setMainWindowMenuVisibilityOnConnected();
   }
 
@@ -172,7 +176,8 @@ class Application implements HBRCApplication {
       if (name === 'localtunnel') providers.push(new LocaltunnelProvider());
       else if (name === 'cloudflare' && isCloudflaredDownloaded)
         providers.push(new CloudflareTunnelProvider(cloudflaredBinPath));
-      else if (name === 'frp' && isFrpDownloaded && frpOptions) providers.push(new FrpTunnelProvider(frpOptions));
+      else if (name === 'frp' && isFrpDownloaded && frpOptions.serverAddr && frpOptions.remotePort)
+        providers.push(new FrpTunnelProvider(frpOptions));
       else if (name === 'devtunnel') providers.push(new DevTunnelProvider());
     }
 
@@ -195,13 +200,27 @@ class Application implements HBRCApplication {
     this.setMainWindowMenuVisibilityOnConnected();
   }
 
+  private async initTunnelStateFromOptions(): Promise<void> {
+    const existing = await this.clientKvStorage.getItem('tunnelState');
+    if (existing) return;
+    this.logger.debug('Not found tunnel state in storage, try get from options');
+    const selectedProviders: string[] = [];
+    for (const provider of Object.keys(this.options.tunnels || {})) {
+      selectedProviders.push(provider);
+    }
+    this.logger.debug('Tunnel providers from options: ', selectedProviders);
+    if (selectedProviders.length > 0) {
+      await this.clientKvStorage.setItem('tunnelState', { active: true, selectedProviders });
+    }
+  }
+
   private async initTunnelFromStorage(): Promise<void> {
     const state = (await this.clientKvStorage.getItem('tunnelState')) as {
       active: boolean;
       selectedProviders: string[];
     } | null;
     if (state?.active && state.selectedProviders?.length > 0) {
-      this.logger.info('restoring tunnel from storage', { providers: state.selectedProviders });
+      this.logger.debug('restoring tunnel from storage', { providers: state.selectedProviders });
       await this.activateTunnel(state.selectedProviders).catch((err) => {
         this.logger.error('failed to restore tunnel', { err: err.message });
       });
@@ -233,7 +252,6 @@ class Application implements HBRCApplication {
     await this.instanceManager.init(this.browser!);
     await this.initTunnelServer();
     await this.initOptions();
-    await this.initTunnelFromStorage();
     await updateUserAgents();
     this._isReady = true;
     this.events.onClientReady.emit();
@@ -318,8 +336,13 @@ class Application implements HBRCApplication {
   }
 
   async disconnectServer() {
+    if (this.tunnelManager) {
+      await this.tunnelManager.stop();
+      this.tunnelManager = null;
+    }
+    await this.clientKvStorage.delItem('tunnelState');
     this.options = {};
-    this.clientKvStorage.delItem('applicationOptions');
+    await this.clientKvStorage.delItem('applicationOptions');
     this.transporterManager.close();
     this.events.onTransporterStatusChanged.emit('disconnected');
     this.sendMainWindowEvent(ON_SERVER_DISCONNECTED);

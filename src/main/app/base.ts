@@ -11,6 +11,7 @@ export type HBRCAppOptions = {
   transporters?: TransportersOptions;
   tunnels?: {
     frp?: FrpTunnelOptions;
+    cloudflare?: any;
   };
 };
 
