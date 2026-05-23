@@ -31,7 +31,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
   async restart() {
     await this.clearJobs();
     await this.page.reload();
-    await this.executeInitInstructions();
+    await this.init();
   }
 
   private async executeInitInstructions() {
