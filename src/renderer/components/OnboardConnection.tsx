@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useAppContext } from '@renderer/context/app';
 import { Button, Card, Input, Modal, Space, List, Typography, Tag } from 'antd';
 import { WarningOutlined, CheckCircleFilled, EditOutlined } from '@ant-design/icons';
-import iconSvg from '../../../assets/icon.svg';
 import { urlSafeB64DecodeString, b64DecodeString } from '@shared/utils/crypto';
+import { HBRCIcon } from './icons';
 
 const tunnelAPI = () => (window as any).tunnelAPI;
 
@@ -118,7 +118,7 @@ export default function OnboardConnection() {
         >
           {/* Logo / Brand */}
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <img src={iconSvg} width={128} height={128} />
+            <HBRCIcon size={128} />
             <Typography.Title level={2} style={{ margin: 0, letterSpacing: -0.5 }}>
               HBRC
             </Typography.Title>

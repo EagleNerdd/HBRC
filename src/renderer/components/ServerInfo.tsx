@@ -5,8 +5,8 @@ import useApplication from '@renderer/hooks/useApplication';
 import { MainEventKey } from '@shared/event/main';
 import { useApplicationInfo } from '@renderer/hooks/useApplicationInfo';
 import { DisconnectOutlined } from '@ant-design/icons';
-import iconSvg from '../../../assets/icon.svg';
 import { PreloadEventKey } from '@shared/event/preload';
+import { HBRCIcon } from './icons';
 
 const tunnelAPI = () => (window as any).tunnelAPI;
 const applicationAPI = () => (window as any).applicationAPI;
@@ -52,7 +52,7 @@ export default function ServerInfo({ applicationInfo }: { applicationInfo: Appli
     >
       {/* Left: icon + server info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <img src={iconSvg} width={64} height={64} style={{ flexShrink: 0 }} />
+        <HBRCIcon size={64} style={{ flexShrink: 0 }} />
         <div>
           <Typography.Text
             strong
