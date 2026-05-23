@@ -105,7 +105,6 @@ class BrowserInstanceManager {
       return bi;
     }
     const data = this.instanceRuntimeStateMap.get(bi.sessionId);
-    this.logger.debug('finalizeInstanceData', { data });
     bi.status = data?.status || 'Stopped';
     bi.headless = data?.headless;
     return bi;

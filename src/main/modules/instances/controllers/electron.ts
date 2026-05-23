@@ -8,14 +8,28 @@ import { getLatestUserAgent, isDebugging } from '@main/utils';
 import { randomString } from '@shared/utils/random';
 
 export class ElectronInstanceController extends BasePuppeteerInstanceController {
+  private onCloseCallback?: () => void;
+  private renderProcessGoneListener?: () => void;
+
   constructor(
     instance: BrowserInstance,
     transporterMessaging: TransporterMessaging,
     clientEvents: ClientEvents,
     page: Page,
     private window: BrowserWindow,
+    onClose?: () => void
   ) {
     super(instance, transporterMessaging, clientEvents, page);
+    this.onCloseCallback = () => {
+      onClose?.();
+      this.tryDestroyWindow();
+    };
+    this.renderProcessGoneListener = () => {
+      onClose?.();
+      this.tryDestroyWindow();
+    };
+    window.on('closed', this.onCloseCallback);
+    window.webContents.on('render-process-gone', this.renderProcessGoneListener);
   }
 
   static async createWithWindow(
@@ -27,9 +41,10 @@ export class ElectronInstanceController extends BasePuppeteerInstanceController 
       show?: boolean;
       hideOnClose?: boolean;
       identifier?: string;
-    },
+      onClose?: () => void;
+    }
   ): Promise<ElectronInstanceController> {
-    const { show, hideOnClose, identifier = instance.sessionId || randomString(30) } = options || {};
+    const { show, hideOnClose, identifier = instance.sessionId || randomString(30), onClose } = options || {};
 
     const window = new BrowserWindow({
       show: !!show,
@@ -63,7 +78,7 @@ export class ElectronInstanceController extends BasePuppeteerInstanceController 
     }
 
     instance.sessionId = identifier;
-    return new ElectronInstanceController(instance, transporterMessaging, clientEvents, page, window);
+    return new ElectronInstanceController(instance, transporterMessaging, clientEvents, page, window, onClose);
   }
 
   private static async getPageFromBrowser(browser: Browser, identifier: string): Promise<Page | null> {
@@ -97,5 +112,29 @@ export class ElectronInstanceController extends BasePuppeteerInstanceController 
 
   getWindow() {
     return this.window;
+  }
+
+  private tryDestroyWindow() {
+    try {
+      if (!this.window.isDestroyed()) {
+        if (this.onCloseCallback) {
+          this.window.removeListener('closed', this.onCloseCallback);
+        }
+        if (this.renderProcessGoneListener) {
+          this.window.webContents.removeListener('render-process-gone', this.renderProcessGoneListener);
+        }
+        this.window.destroy();
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async destroy(): Promise<boolean> {
+    await super.destroy();
+    this.tryDestroyWindow();
+    this.onCloseCallback = undefined;
+    this.renderProcessGoneListener = undefined;
+    return true;
   }
 }
