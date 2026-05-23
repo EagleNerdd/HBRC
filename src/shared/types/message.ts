@@ -1,4 +1,8 @@
-import { BrowserInstanceInstruction } from './browserInstance';
+import { BrowserInstance, BrowserInstanceInstruction } from './browserInstance';
+
+export type UpdateInstancePayload = Partial<
+  Pick<BrowserInstance, 'sessionId' | 'name' | 'initInstructions' | 'attributePresets' | 'attributes'>
+>;
 
 export type IncomingTransportMessage = {
   controlInstance?: {
@@ -7,8 +11,7 @@ export type IncomingTransportMessage = {
   };
   manageInstance?: {
     action: 'updateInstance';
-    instanceSessionId?: string;
-    payload?: any;
+    payload?: UpdateInstancePayload; // Because manageInstance can manage multi instances so that sessionId should in payload
   };
 };
 

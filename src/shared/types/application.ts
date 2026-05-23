@@ -27,12 +27,12 @@ export type BrowserInstanceManagerAPI = {
   stopInstance: (sessionId: string) => Promise<any>;
   updateInstance: (
     sessionId: string,
-    payload: { name?: string, attributes?: Record<string, string> },
+    payload: { name?: string; attributes?: Record<string, string | string[]> },
     options?: {
       restart?: boolean;
       notifyToTransporter?: boolean;
       notifyToRenderer?: boolean;
-    },
+    }
   ) => Promise<any>;
 };
 

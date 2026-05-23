@@ -92,6 +92,9 @@ class BrowserInstanceManager {
       if (!bi) {
         throw new NotFoundError(`Instance not found: ${sessionId}`);
       }
+      if (!payload || !Object.keys(payload)) {
+        return data;
+      }
       await this.updateInstance(sessionId, payload);
       return data;
     }
@@ -255,7 +258,7 @@ class BrowserInstanceManager {
 
   async updateInstance(
     sessionId: string,
-    bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions' | 'attributes'>>,
+    bi: Partial<Pick<BrowserInstance, 'name' | 'initInstructions' | 'attributePresets' | 'attributes'>>,
     options?: {
       restart?: boolean;
       notifyToTransporter?: boolean;

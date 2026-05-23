@@ -20,6 +20,18 @@ export type BrowserInstanceMessage = {
   message: string;
 };
 
+export type BrowserInstanceAttributePresetEnumItem = {
+  key: string;
+  label: string;
+};
+
+export type BrowserInstanceAttributePreset = {
+  key: string;
+  label: string;
+  type?: 'text' | 'select' | 'multiselect';
+  enum?: BrowserInstanceAttributePresetEnumItem[];
+};
+
 export type BrowserInstance = {
   sessionId: string;
   name: string;
@@ -28,7 +40,8 @@ export type BrowserInstance = {
   status?: BrowserInstanceStatus;
   initInstructions?: BrowserInstanceInstruction[];
   userAgent?: string;
-  attributes?: Record<string, string>;
+  attributes?: Record<string, string | string[]>;
+  attributePresets?: BrowserInstanceAttributePreset[];
   headless?: boolean;
   [key: string]: any;
 };

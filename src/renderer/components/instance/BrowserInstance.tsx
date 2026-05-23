@@ -1,7 +1,16 @@
 import React, { useEffect } from 'react';
-import { Button, Card, Divider, Form, Input, message, Modal, Popconfirm, Space, Tag } from 'antd';
-import { DeleteOutlined, EditOutlined, EyeInvisibleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, SendOutlined, WindowsOutlined } from '@ant-design/icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button, Card, Divider, Form, Input, message, Modal, Popconfirm, Select, Space, Tag } from 'antd';
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeInvisibleOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  SendOutlined,
+  WindowsOutlined,
+} from '@ant-design/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import QueryKeys from '@renderer/constants/queryKeys';
 import useBrowserInstanceManager from '@renderer/hooks/useBrowserInstanceManager';
 import { BrowserInstance, BrowserInstanceMessage, BrowserInstanceNames } from '@shared/types';
@@ -17,8 +26,7 @@ const DeleteBtn = ({ disabled, onConfirm }) => {
       okText="Delete"
       cancelText="Cancel"
     >
-      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {
-      }} />
+      <DeleteOutlined style={{ color: 'red' }} onClick={async () => {}} />
     </Popconfirm>
   );
 };
@@ -71,19 +79,72 @@ const CallFunctionModal = ({ isOpen, instance, setIsOpen }) => {
   );
 };
 
+const AttributeField = ({ form, name, restField, presets, onRemove }) => {
+  const currentKey = Form.useWatch(['attributes', name, 'key'], form);
+  const preset = presets?.find((p) => p.key === currentKey);
+  const hasEnum = preset?.enum?.length > 0;
+  const isMulti = preset?.type === 'multiselect';
+
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
+      {preset ? (
+        <>
+          <Form.Item {...restField} name={[name, 'key']} hidden>
+            <Input />
+          </Form.Item>
+          <Input value={preset.label} disabled style={{ width: 150, flexShrink: 0 }} />
+        </>
+      ) : (
+        <Form.Item
+          {...restField}
+          name={[name, 'key']}
+          rules={[{ required: true, message: 'Key required' }]}
+          style={{ margin: 0 }}
+        >
+          <Input placeholder="Key" style={{ width: 150 }} />
+        </Form.Item>
+      )}
+      <Form.Item
+        {...restField}
+        name={[name, 'value']}
+        rules={[{ required: true, message: 'Value required' }]}
+        style={{ margin: 0, flex: 1 }}
+      >
+        {hasEnum ? (
+          <Select
+            mode={isMulti ? 'multiple' : undefined}
+            options={preset.enum.map((e) => ({ value: e.key, label: e.label }))}
+            placeholder="Select value"
+            style={{ width: '100%' }}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+          />
+        ) : (
+          <Input placeholder="Value" />
+        )}
+      </Form.Item>
+      <Button onClick={() => onRemove(name)} danger icon={<DeleteOutlined />} style={{ flexShrink: 0 }} />
+    </div>
+  );
+};
+
 const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
   const [form] = Form.useForm();
   const instanceManager = useBrowserInstanceManager();
+  const presets = instance.attributePresets ?? [];
+  const currentAttributes = Form.useWatch('attributes', form) ?? [];
+  const usedPresetKeys = new Set(
+    currentAttributes.map((a: { key: string }) => a?.key).filter((k: string) => presets.some((p) => p.key === k))
+  );
+  const availablePresets = presets.filter((p) => !usedPresetKeys.has(p.key));
+
   const updateInstance = useMutation({
-    mutationFn: ({ name, attributes }: { name: string, attributes: Record<string, string> }) =>
+    mutationFn: ({ name, attributes }: { name: string; attributes: Record<string, string | string[]> }) =>
       instanceManager.updateInstance(
         instance.sessionId,
         { name, attributes },
-        {
-          restart: false,
-          notifyToTransporter: true,
-          notifyToRenderer: true,
-        },
+        { restart: false, notifyToTransporter: true, notifyToRenderer: true }
       ),
     onSuccess: () => {
       message.success('Update attributes success');
@@ -94,6 +155,7 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
       message.error('Update attributes failed');
     },
   });
+
   useEffect(() => {
     if (instance) {
       form.setFieldsValue({
@@ -101,7 +163,7 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
         attributes: Object.entries(instance.attributes || {}).map(([key, value]) => ({ key, value })),
       });
     }
-  }, [instance]);
+  }, [instance, presets]);
 
   return (
     <Modal
@@ -109,13 +171,13 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
       open={isOpen}
       onOk={async () => {
         const values = form.getFieldsValue();
-        const attributes = {};
-        for (const { key, value } of values.attributes) {
-          if (!key || !value) {
+        const attributes: Record<string, string | string[]> = {};
+        for (const { key, value } of values.attributes ?? []) {
+          if (!key) {
             message.error('Key and value are required');
             return;
           }
-          attributes[key] = value;
+          attributes[key] = value ?? '';
         }
         updateInstance.mutate({ name: values.name, attributes });
       }}
@@ -125,11 +187,7 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
     >
       <Form form={form} name="editInstance">
         <h4>Instance</h4>
-        <Form.Item
-          label="Name"
-          name="name"
-          rules={[{ required: true, message: 'Please input instance name!' }]}
-        >
+        <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please input instance name!' }]}>
           <Input placeholder="Example 1" />
         </Form.Item>
       </Form>
@@ -138,25 +196,36 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
         <Form.List name="attributes">
           {(fields, { add, remove }) => (
             <>
-              {fields.map(({ key, name, ...restField }, index) => (
-                <Space key={key} style={{ display: 'flex' }} align="baseline">
-                  <Form.Item {...restField} name={[name, 'key']} rules={[{ required: true, message: 'Key required' }]}>
-                    <Input placeholder="Key" />
-                  </Form.Item>
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'value']}
-                    rules={[{ required: true, message: 'Value required' }]}
-                  >
-                    <Input placeholder="Value" />
-                  </Form.Item>
-                  <Button onClick={() => remove(index)} danger icon={<DeleteOutlined />} />
-                </Space>
+              {fields.map(({ key, name, ...restField }) => (
+                <AttributeField
+                  key={key}
+                  form={form}
+                  name={name}
+                  restField={restField}
+                  presets={presets}
+                  onRemove={remove}
+                />
               ))}
               <Form.Item>
-                <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />}>
-                  Add Attribute
-                </Button>
+                <Space>
+                  <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />}>
+                    Add Attribute
+                  </Button>
+                  {presets.length > 0 && (
+                    <Select
+                      placeholder="Add from preset..."
+                      style={{ width: 220 }}
+                      value={null}
+                      onSelect={(presetKey) => {
+                        const preset = presets.find((p) => p.key === (presetKey as string));
+                        if (preset) {
+                          add({ key: preset.key, value: preset.type === 'multiselect' ? [] : undefined });
+                        }
+                      }}
+                      options={availablePresets.map((p) => ({ value: p.key, label: p.label }))}
+                    />
+                  )}
+                </Space>
               </Form.Item>
             </>
           )}
@@ -167,9 +236,9 @@ const EditInstanceModal = ({ isOpen, instance, setIsOpen }) => {
 };
 
 export default function BrowserInstanceComponent({
-                                                   instance,
-                                                   instanceMessage,
-                                                 }: {
+  instance,
+  instanceMessage,
+}: {
   instance: BrowserInstance;
   instanceMessage?: BrowserInstanceMessage;
 }) {
@@ -222,7 +291,7 @@ export default function BrowserInstanceComponent({
       onClick={() => {
         setEditInstanceModalOpen(true);
       }}
-    />,
+    />
   );
 
   if (status === 'Running') {
@@ -233,7 +302,7 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           stopInstance.mutate(sessionId);
         }}
-      />,
+      />
     );
     if ((instance.type != 'puppeteer' && instance.type != 'single-puppeteer') || instance.headless) {
       actions.push(
@@ -242,7 +311,7 @@ export default function BrowserInstanceComponent({
           onClick={() => {
             instanceManager.showInstanceWindow(sessionId);
           }}
-        />,
+        />
       );
     } else {
       actions.push(
@@ -251,7 +320,7 @@ export default function BrowserInstanceComponent({
           onClick={() => {
             instanceManager.hideInstanceWindow(sessionId);
           }}
-        />,
+        />
       );
     }
     if (isDebug) {
@@ -261,7 +330,7 @@ export default function BrowserInstanceComponent({
           onClick={() => {
             setCFModalOpen(true);
           }}
-        />,
+        />
       );
     }
   } else if (status === 'Stopped') {
@@ -272,11 +341,11 @@ export default function BrowserInstanceComponent({
         onClick={() => {
           startInstance.mutate(sessionId);
         }}
-      />,
+      />
     );
   }
   actions.push(
-    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />,
+    <DeleteBtn key="delete" disabled={deleteChannel.isPending} onConfirm={() => deleteChannel.mutate(sessionId)} />
   );
 
   let statusColor = 'default';
@@ -306,7 +375,9 @@ export default function BrowserInstanceComponent({
           <div>
             <div>
               <Tag color={statusColor}>{status}</Tag>
-              {instance.type != 'electron' && <Tag color="purple">{BrowserInstanceNames[instance.type] ?? instance.type}</Tag>}
+              {instance.type != 'electron' && (
+                <Tag color="purple">{BrowserInstanceNames[instance.type] ?? instance.type}</Tag>
+              )}
               {instance.headless && <Tag color="red">headless</Tag>}
               <Tag color="blue">{instance.url}</Tag>
             </div>

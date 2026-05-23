@@ -1,6 +1,6 @@
 import { Event } from '@shared/event';
 import { TransporterStatus } from '@shared/types/transporter';
-import { BrowserInstance, BrowserInstanceMessage } from '@shared/types';
+import { BrowserInstance, BrowserInstanceMessage, IncomingTransportMessage } from '@shared/types';
 
 import { filter, bufferWhen, debounceTime, map } from 'rxjs';
 import { HBRCApplication } from '@main/app';
