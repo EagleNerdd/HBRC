@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAppContext } from '@renderer/context/app';
-import { Button, Card, Input, Modal, Space, List, Typography, Tag } from 'antd';
-import { WarningOutlined, CheckCircleFilled, EditOutlined } from '@ant-design/icons';
+import { Button, Card, Input, Typography, Tag } from 'antd';
+import { CheckCircleFilled, EditOutlined } from '@ant-design/icons';
 import { urlSafeB64DecodeString, b64DecodeString } from '@shared/utils/crypto';
 import { HBRCIcon } from './icons';
+import TunnelProviderDownloadModal from './TunnelProviderDownloadModal';
 
 const tunnelAPI = () => (window as any).tunnelAPI;
 
@@ -69,10 +70,10 @@ export default function OnboardConnection() {
     }
   };
 
-  const handleDownloadAndConnect = async () => {
+  const handleDownloadAndConnect = async (selectedProviders: string[]) => {
     setIsDownloading(true);
     try {
-      for (const provider of requiredProviders) {
+      for (const provider of requiredProviders.filter((p) => selectedProviders.includes(p.name))) {
         const componentKey = DOWNLOAD_KEY[provider.name];
         if (!componentKey) continue;
         const success = await tunnelAPI().download(componentKey);
@@ -87,6 +88,13 @@ export default function OnboardConnection() {
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const handleConnectOnly = async () => {
+    const options = pendingOptions;
+    setPendingOptions(null);
+    setRequiredProviders([]);
+    await applyOptions(options);
   };
 
   const handleCancelDownload = () => {
@@ -192,47 +200,14 @@ export default function OnboardConnection() {
         </Card>
       </div>
 
-      <Modal
-        title="Download Required"
+      <TunnelProviderDownloadModal
         open={!!pendingOptions}
-        closable={!isDownloading}
-        maskClosable={!isDownloading}
+        providers={requiredProviders}
+        isDownloading={isDownloading}
+        onDownloadAndConnect={handleDownloadAndConnect}
+        onConnectOnly={handleConnectOnly}
         onCancel={handleCancelDownload}
-        footer={null}
-      >
-        <p>This connection string requires the following tunnel providers. Please download them to continue:</p>
-        <List
-          size="small"
-          dataSource={requiredProviders}
-          renderItem={(p) => <List.Item>{p.label}</List.Item>}
-          style={{ marginBottom: 20 }}
-        />
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Space>
-            <Button type="primary" loading={isDownloading} onClick={handleDownloadAndConnect}>
-              Download &amp; Connect
-            </Button>
-            <Button
-              disabled={isDownloading}
-              onClick={async () => {
-                const options = pendingOptions;
-                setPendingOptions(null);
-                setRequiredProviders([]);
-                await applyOptions(options);
-              }}
-            >
-              Connect Only
-            </Button>
-            <Button disabled={isDownloading} onClick={handleCancelDownload}>
-              Cancel
-            </Button>
-          </Space>
-          <Typography.Text style={{ fontSize: 12, color: '#faad14' }}>
-            <WarningOutlined style={{ marginRight: 6 }} />
-            Connecting without downloading the required providers may cause tunneling to not work as expected.
-          </Typography.Text>
-        </Space>
-      </Modal>
+      />
     </>
   );
 }
