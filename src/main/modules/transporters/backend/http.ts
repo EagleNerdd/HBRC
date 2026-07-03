@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import axiosRetry, { IAxiosRetryConfig } from 'axios-retry';
 import { BaseTransporter, BaseTransporterOptions } from './base';
 
 export type HttpTransporterOptions = {
@@ -7,11 +8,13 @@ export type HttpTransporterOptions = {
     params?: Record<string, string>;
     headers?: Record<string, string>;
     intervalSeconds: number;
+    retryOptions?: IAxiosRetryConfig;
   };
   pusher?: {
     url: string;
     params?: Record<string, string>;
     headers?: Record<string, string>;
+    retryOptions?: IAxiosRetryConfig;
   };
 } & BaseTransporterOptions;
 
@@ -19,17 +22,23 @@ export class HttpTransporter extends BaseTransporter {
   private puller: AxiosInstance;
   private pusher: AxiosInstance;
   private interVal = undefined;
+
   constructor(
     protected name: string,
-    protected readonly options: HttpTransporterOptions
+    protected readonly options: HttpTransporterOptions,
   ) {
     super(name, options);
+    const retryDefaultOptions: IAxiosRetryConfig = {
+      retries: 10,
+      retryDelay: (n, e) => Math.min(30_000, axiosRetry.exponentialDelay(n, e)),
+    };
     if (options.puller) {
       this.puller = axios.create({
         baseURL: options.puller.url,
         params: options.puller.params,
         headers: options.puller.headers,
       });
+      axiosRetry(this.pusher, { ...retryDefaultOptions, ...options.puller.retryOptions });
     }
     if (options.pusher) {
       this.pusher = axios.create({
@@ -37,6 +46,7 @@ export class HttpTransporter extends BaseTransporter {
         params: options.pusher.params,
         headers: options.pusher.headers,
       });
+      axiosRetry(this.pusher, { ...retryDefaultOptions, ...options.pusher.retryOptions });
     }
   }
 
