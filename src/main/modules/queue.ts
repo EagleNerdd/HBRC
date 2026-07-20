@@ -3,21 +3,34 @@ import { randomUUID } from 'crypto';
 import { Queue as BaseFileQueue } from 'file-queue';
 import { OnMessageCallback, Queue } from '@shared/queue';
 import { sleep } from '@shared/utils/time';
+import { createLogger, Logger } from '@main/logging';
+
+const DEFAULT_MAX_RETRY_DELAY_MS = 60_000;
 
 export class FileQueue implements Queue {
   private baseQueue?: BaseFileQueue;
   private messageCallback?: OnMessageCallback;
   private messageMaxRequeueNumber = -1;
   private messageRequeueMap = new Map<string, any>();
+  private running = false;
+  private maxRetryDelayMs = DEFAULT_MAX_RETRY_DELAY_MS;
+  private logger: Logger;
+
   constructor(
     private path: string,
     options: {
       messageMaxRequeueNumber?: number;
+      maxRetryDelayMs?: number;
+      name?: string;
     } = {}
   ) {
     if (options.messageMaxRequeueNumber !== undefined) {
       this.messageMaxRequeueNumber = options.messageMaxRequeueNumber;
     }
+    if (options.maxRetryDelayMs !== undefined) {
+      this.maxRetryDelayMs = options.maxRetryDelayMs;
+    }
+    this.logger = createLogger(`queue.${options.name ?? path}`);
     mkdirSync(path, { recursive: true });
   }
 
@@ -34,47 +47,67 @@ export class FileQueue implements Queue {
     this.baseQueue.clear();
   }
 
+  stop(): void {
+    this.running = false;
+  }
+
   async start(): Promise<void> {
     if (this.baseQueue) return;
-    this.baseQueue = await new Promise((resolve, reject) => {
-      const q = new BaseFileQueue(this.path, (...args: any) => {
+    this.baseQueue = await new Promise((resolve) => {
+      const q = new BaseFileQueue(this.path, () => {
         resolve(q);
       });
     });
 
+    this.running = true;
     setTimeout(async () => {
-      while (true) {
-        const { data, err, commit, rollback } = await this.tpop();
-        // console.log('pop data', data);
-        const { msgId } = data;
-        if (!data || err) {
+      while (this.running) {
+        let tpopResult: { data?: any; commit: any; rollback: any };
+        try {
+          tpopResult = await this.tpop();
+        } catch (e) {
+          this.logger.error('tpop error', { error: e });
+          await sleep(1000);
+          continue;
+        }
+
+        const { data, commit, rollback } = tpopResult;
+        if (!data) {
           await sleep(500);
-        } else {
-          try {
-            if (this.messageCallback) {
-              await this.messageCallback(data);
-            }
-            // console.log('queue commit', data);
-            await commit();
-          } catch (e) {
-            const retryData = this.messageRequeueMap.get(msgId) || {
-              retryCount: 0,
-            };
-            retryData.error = e;
-            const shouldRequeue =
-              this.messageMaxRequeueNumber < 0 || retryData.retryCount < this.messageMaxRequeueNumber;
-            if (shouldRequeue) {
-              retryData.retryCount++;
-              this.messageRequeueMap.set(msgId, retryData);
-              const delayTime = Math.pow(2, retryData.retryCount) * 1000;
-              // console.debug('requeue message', { delayTime, retryData, data });
-              setTimeout(async () => {
+          continue;
+        }
+
+        const { msgId } = data;
+        try {
+          if (this.messageCallback) {
+            await this.messageCallback(data);
+          }
+          await commit();
+          this.messageRequeueMap.delete(msgId);
+        } catch (e) {
+          const retryData = this.messageRequeueMap.get(msgId) ?? { retryCount: 0 };
+          retryData.error = e;
+          const shouldRequeue = this.messageMaxRequeueNumber < 0 || retryData.retryCount < this.messageMaxRequeueNumber;
+          if (shouldRequeue) {
+            retryData.retryCount++;
+            this.messageRequeueMap.set(msgId, retryData);
+            const delayTime = Math.min(Math.pow(2, retryData.retryCount) * 1000, this.maxRetryDelayMs);
+            this.logger.warn('retrying message', { retryCount: retryData.retryCount, error: e?.message ?? e, data });
+            setTimeout(async () => {
+              try {
                 await rollback();
-              }, delayTime);
-            } else {
-              await commit();
-              this.messageRequeueMap.delete(msgId);
-            }
+              } catch (rollbackErr) {
+                this.logger.error('rollback error', { error: rollbackErr });
+              }
+            }, delayTime);
+          } else {
+            this.logger.error('message dropped after max retries', {
+              retryCount: retryData.retryCount,
+              error: e?.message ?? e,
+              data,
+            });
+            await commit();
+            this.messageRequeueMap.delete(msgId);
           }
         }
       }

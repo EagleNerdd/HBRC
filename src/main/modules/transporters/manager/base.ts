@@ -61,7 +61,7 @@ export class BaseTransporterManager implements TransporterManager {
     } else if (type == TransporterType.MQTT) {
       transporter = new MqttTransporter(name, options as MqttTransporterOptions);
     } else if (type == TransporterType.DUMMY) {
-      transporter == new DummyTransporter(name);
+      transporter = new DummyTransporter(name);
     }
     this.transporters[name] = transporter;
     return transporter;

@@ -15,7 +15,10 @@ export type MqttTransporterOptions = {
 
 export class MqttTransporter extends BaseTransporter {
   private mqttClient?: MqttClient;
-  constructor(protected name: string, protected readonly options: MqttTransporterOptions) {
+  constructor(
+    protected name: string,
+    protected readonly options: MqttTransporterOptions
+  ) {
     super(name, options);
     if (options.qos === undefined) {
       options.qos = 1;
@@ -54,20 +57,24 @@ export class MqttTransporter extends BaseTransporter {
     client.on('disconnect', (e) => {
       this.logger.debug('mqtt disconnected', e);
     });
+    client.on('error', (e: Error) => {
+      this.logger.error('mqtt error', { error: e.toString() });
+    });
   }
+
   async _send(data: any) {
-    if (!this.mqttClient) {
+    if (!this.mqttClient?.connected) {
       throw new Error('mqtt client not connected');
     }
-    const { publishTopic } = this.options;
-    try {
-      const message = JSON.stringify(data);
-      this.mqttClient.publish(publishTopic, message);
-      this.logger.debug('send message success', { message, publishTopic });
-    } catch (e) {
-      this.logger.error('send message failed', { data, publishTopic, error: e.toString() });
-      throw e;
-    }
+    const { publishTopic, qos } = this.options;
+    const message = JSON.stringify(data);
+    await new Promise<void>((resolve, reject) => {
+      this.mqttClient.publish(publishTopic, message, { qos }, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    this.logger.debug('send message success', { message, publishTopic });
   }
 
   private onMessage(topic: string, message: Buffer) {

@@ -12,9 +12,12 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
   constructor(clientEvents: ClientEvents) {
     super(clientEvents);
     this.ttcMessagesQueue = new FileQueue(getDataPath('message_queues', 'ttc'), {
-      messageMaxRequeueNumber: 10,
+      name: 'ttc',
+      messageMaxRequeueNumber: 20,
     });
-    this.cttMessagesQueue = new FileQueue(getDataPath('message_queues', 'ctt'));
+    this.cttMessagesQueue = new FileQueue(getDataPath('message_queues', 'ctt'), {
+      name: 'ctt',
+    });
   }
 
   async sendMessage(message: OutgoingTransportMessage, options?: { transporter?: string }): Promise<void> {
@@ -31,6 +34,25 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
       throw new Error('Default transporter not found');
     }
     this.clientEvents.onTransporterStatusChanged.emit('connecting');
+
+    // Register processing callbacks before starting queues
+    this.cttMessagesQueue.onMessage(async (data: { message: OutgoingTransportMessage; transporter?: string }) => {
+      let transporter = defaultTransporter;
+      if (data.transporter) {
+        transporter = this.getTransporter(data.transporter);
+      }
+      if (transporter) {
+        await transporter.send(data.message);
+      } else {
+        throw new Error('Not found transporter');
+      }
+    });
+
+    // Start queues before connecting transporter to avoid push() before start()
+    this.ttcMessagesQueue.start();
+    this.cttMessagesQueue.start();
+
+    // Register transporter callbacks and connect after queues are ready
     defaultTransporter.onConnected(async () => {
       this.clientEvents.onTransporterStatusChanged.emit('connected');
     });
@@ -41,25 +63,18 @@ export class DefaultTransporterManager extends BaseTransporterManager implements
         this.logger.warn('Unknown message type', { message });
       }
     });
-    this.cttMessagesQueue.onMessage(async (data: { message: OutgoingTransportMessage; transporter?: string }) => {
-      let transporter = defaultTransporter;
-      if (data.transporter) {
-        transporter = this.getTransporter(data.transporter);
-      }
-      if (transporter) {
-        let message = data.message;
-        await transporter.send(message);
-      } else {
-        throw new Error('Not found transporter');
-      }
-    });
-    this.ttcMessagesQueue.start();
-    this.cttMessagesQueue.start();
+
     defaultTransporter.connect();
     for (const [k, v] of Object.entries(this.transporters)) {
       if (k != 'default') {
         v.connect();
       }
     }
+  }
+
+  close(): void {
+    (this.ttcMessagesQueue as FileQueue).stop();
+    (this.cttMessagesQueue as FileQueue).stop();
+    super.close();
   }
 }
