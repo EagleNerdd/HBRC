@@ -14,7 +14,8 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
   private logger: Logger;
   protected browser?: Browser | BrowserContext;
   protected activeJobs: Map<string, JobState> = new Map();
-  protected supportedEvalCommands: Set<string> = new Set(['addJob']);
+  protected supportedEvalCommands: Set<string> = new Set(['addJob', 'browserEvalOnNewDocument']);
+  protected newDocumentScriptIds: string[] = [];
 
   protected constructor(
     instance: BrowserInstance,
@@ -30,11 +31,13 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   async restart() {
     await this.clearJobs();
+    await this.removeNewDocumentScripts();
     await this.page.reload();
     await this.executeInitInstructions();
   }
 
   private async executeInitInstructions() {
+    await this.removeNewDocumentScripts();
     if (this.instance.initInstructions) {
       try {
         await this.executeInstructions(this.instance.initInstructions);
@@ -89,6 +92,28 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
 
   browserEval(code: string): Promise<any> {
     return this.page.evaluate(code);
+  }
+
+  /**
+   * Register code to run on every new document, before any of the page's own scripts.
+   * Does not run on the current document, so register it before navigating/reloading.
+   */
+  async browserEvalOnNewDocument(code: string): Promise<string> {
+    const { identifier } = await this.page.evaluateOnNewDocument(code);
+    this.newDocumentScriptIds.push(identifier);
+    return identifier;
+  }
+
+  protected async removeNewDocumentScripts() {
+    const ids = this.newDocumentScriptIds;
+    this.newDocumentScriptIds = [];
+    for (const id of ids) {
+      try {
+        await this.page.removeScriptToEvaluateOnNewDocument(id);
+      } catch (e) {
+        this.logger.warn('Error removing new document script', { error: e, sessionId: this.instance.sessionId });
+      }
+    }
   }
 
   async addJob(config: IntervalJobConfig) {
