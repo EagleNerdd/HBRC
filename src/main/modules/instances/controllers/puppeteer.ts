@@ -16,6 +16,7 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
   protected activeJobs: Map<string, JobState> = new Map();
   protected supportedEvalCommands: Set<string> = new Set(['addJob', 'browserEvalOnNewDocument']);
   protected newDocumentScriptIds: string[] = [];
+  private closeListenersDisposer?: () => void;
 
   protected constructor(
     instance: BrowserInstance,
@@ -140,8 +141,6 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
           result = await this.executeInstruction(instr as BrowserInstanceInstruction);
         }
 
-        console.log('Result: ', result);
-
         const executionTime = Date.now() - startTime;
         const isTimeout = executionTime > jobState.timeoutSeconds! * 1000;
 
@@ -180,7 +179,28 @@ export abstract class BasePuppeteerInstanceController extends BaseBrowserInstanc
     this.activeJobs.clear();
   }
 
+  /**
+   * Call onClose when the browser or page goes away on its own.
+   * closeWindow detaches these first, so closing them ourselves does not stop the instance.
+   */
+  protected watchClose(browser: Browser, page: Page, onClose?: () => void) {
+    this.unwatchClose();
+    if (!onClose) return;
+    browser.on('disconnected', onClose);
+    page.on('close', onClose);
+    this.closeListenersDisposer = () => {
+      browser.off('disconnected', onClose);
+      page.off('close', onClose);
+    };
+  }
+
+  protected unwatchClose() {
+    this.closeListenersDisposer?.();
+    this.closeListenersDisposer = undefined;
+  }
+
   async closeWindow() {
+    this.unwatchClose();
     await this.clearJobs();
     if (this.browser) {
       await this.postInstanceUpdated({ status: 'Stopping' });
@@ -261,11 +281,16 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
 
     const { browser, page } = await this.launchBrowser(headless, userAgent, dataDir);
 
-    await page.evaluateOnNewDocument((id: string) => {
-      (window as any).hbrcWindowId = id;
-    }, identifier);
+    try {
+      await page.evaluateOnNewDocument((id: string) => {
+        (window as any).hbrcWindowId = id;
+      }, identifier);
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: BasePuppeteerInstanceController.PageLoadTimeout });
+    } catch (e) {
+      await browser.close().catch(console.error);
+      throw e;
+    }
 
     return { browser, page };
   }
@@ -287,11 +312,6 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
     const opts = { identifier, userAgent, onClose };
     const { browser, page } = await this.createBrowser(headless, opts.identifier, opts.userAgent, instance.url);
 
-    if (onClose) {
-      browser.on('disconnected', onClose);
-      page.on('close', onClose);
-    }
-
     instance.sessionId = identifier;
     const controller = new PuppeteerInstanceController(
       instance,
@@ -301,26 +321,30 @@ export class PuppeteerInstanceController extends BasePuppeteerInstanceController
       browser,
       opts
     );
+    controller.watchClose(browser, page, onClose);
     await controller.postInstanceUpdated({ headless });
     return controller;
   }
 
-  async switchToHeadless(headless: boolean) {
+  private async switchToHeadless(headless: boolean) {
     await this.postInstanceUpdated({ status: 'Starting', headless });
-    const { browser, page } = await PuppeteerInstanceController.createBrowser(
-      headless,
-      this.options.identifier,
-      this.options.userAgent,
-      this.instance.url
-    );
-    this.browser = browser;
-    this.page = page;
-    if (this._onClose) {
-      browser.on('disconnected', this._onClose);
-      page.on('close', this._onClose);
+    try {
+      const { browser, page } = await PuppeteerInstanceController.createBrowser(
+        headless,
+        this.options.identifier,
+        this.options.userAgent,
+        this.instance.url
+      );
+      this.browser = browser;
+      this.page = page;
+      this.watchClose(browser, page, this._onClose);
+      await this.init();
+      await this.postInstanceUpdated({ status: 'Running' });
+    } catch (e) {
+      await this.closeWindow();
+      await this.postInstanceUpdated({ status: 'Stopped' });
+      throw e;
     }
-    await this.init();
-    await this.postInstanceUpdated({ status: 'Running' });
   }
 
   async showWindow() {
